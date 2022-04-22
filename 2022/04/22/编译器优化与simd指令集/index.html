@@ -20,28 +20,85 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/index.html">
+  <meta name="description" content="x64架构下的寄存器模型寄存器的读写速度比内存快，如果读到寄存器里去计算就比较高效。上图白色的寄存器是32位下就有的。 RIP：当前执行代码的地址 MMX&#x2F;YMM：存储浮点数 汇编的一些例子：  这是一个函数调用的过程。函数调用就是一个压栈、出栈的过程。这里的栈就是CPU寄存器里的某个指针所指向的一片内存，这个指针通常位于ESP&#x2F;RSP寄存器。 这里编译器发现程序只用到了a变量">
+<meta property="og:type" content="article">
+<meta property="og:title" content="编译器优化与simd指令集">
+<meta property="og:url" content="http://example.com/2022/04/22/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E4%B8%8Esimd%E6%8C%87%E4%BB%A4%E9%9B%86/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="x64架构下的寄存器模型寄存器的读写速度比内存快，如果读到寄存器里去计算就比较高效。上图白色的寄存器是32位下就有的。 RIP：当前执行代码的地址 MMX&#x2F;YMM：存储浮点数 汇编的一些例子：  这是一个函数调用的过程。函数调用就是一个压栈、出栈的过程。这里的栈就是CPU寄存器里的某个指针所指向的一片内存，这个指针通常位于ESP&#x2F;RSP寄存器。 这里编译器发现程序只用到了a变量">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://cdn5.maocdn.cn/img/2022/04/22/x86.png">
+<meta property="og:image" content="https://cdn5.maocdn.cn/img/2022/04/22/X_4JIK7_1FS64.png">
+<meta property="og:image" content="https://cdn5.maocdn.cn/img/2022/04/22/yh.png">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-17b44d6ae69f1316e122a51e4bbce687_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-afcc0474761095737097a6eb1ef16474_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-7d09208b4880a26fa5a7a10952ef3573_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-72e7f188a13bbcaca2c8bde30efa3c06_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-5f2b018aa4f93bf8c2074e5ecafbe828_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-b97d299f62627e41503a1e49e60891a5_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-9a74ec21ab75e4e3f5050510fc04a9b1_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-3cd0879ef16059fa4b7a13bc589337c2_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-597eb60596f987e620da6234fc62d71d_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-80203b95447844f6786d770ebb1e1e5e_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-acc751a177391592b24796b9c7e8e085_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-a870943b37b125030020301afb6c40a9_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-696939f13bda687de35d358820d6b1e9_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-c7694e93463f2feb4348f2301b2f234d_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-17d23235885278ec61971f0fa17a0c1e_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-2ddd01dc3ceef4f098b0a67e283a00f6_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-08ed7a374e634453269157ea13237ef7_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-718bb43f9512952ccf7dc76baf727c30_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-f1964811e188bb5c906e56ae40a322d4_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-a647f2bad0cd0037b3e24c53bc4863a6_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-fd80046f9cf467316a1bbead4800b32b_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-297f5d24a5640b32908095d13967735f_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-f961668f48bcada5b209af16dcdb78af_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-027f181130f56428c8fef9ab78c83236_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-ecb04b622b7a3701c1ea51c1eee352fc_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-d4ed12dd927448622d8b70da3181881f_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-3e30f49afbb1c646f3705a855077a58c_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-71a22aab411684482912b2f450a5fcc8_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-908cd8a2c84d679a8c06b562558aff17_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-509534847ce9bbbaee4c776ae6ad9d3a_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-3a02f1c736e917bf98c720bd1f9ee56d_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-5f9fe9a7dcafd045f8491dca902b8d70_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-01b5bf8718bb022fd2bbd4406ee4e111_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-a4136d4bd89ac2ffdd84da648ca799e0_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-d7938da3d827d23b0f9f3c82e84c925c_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-1a8a745a5dfa93f9d5bc9a137b5976c4_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-6729f9c487c92c6053da5e279569fbc6_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-df7aeb71e477d02d796fbb77b7743eae_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-4a3218a21ddabd9595e1658c937d7113_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-81acf2aa38f6a416ae02cc999f281c3b_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-fdca2fca040acb8f90199307e08dc927_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-1d0fba0997708b6a295b27581618a394_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-04538082f9af4caa80a6174ecc888fd9_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-7d65a6188f2560f052fb2a95e2877fa7_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-1a9677d1bea489476fd1d944ca8150e2_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-080c1654cdedf83d55fea7b5be04cc6b_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-94624651883468c62a5758cc82d1f0c3_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-fa9221d0970d0b09f6f0d83211707603_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-e4eb32e7f6798045f660ea71d0eea3ca_b.jpg">
+<meta property="article:published_time" content="2022-04-22T00:23:17.000Z">
+<meta property="article:modified_time" content="2022-04-22T02:48:27.314Z">
 <meta property="article:author" content="John Doe">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn5.maocdn.cn/img/2022/04/22/x86.png">
 
-<link rel="canonical" href="http://example.com/">
+<link rel="canonical" href="http://example.com/2022/04/22/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E4%B8%8Esimd%E6%8C%87%E4%BB%A4%E9%9B%86/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'en'
   };
 </script>
 
-  <title>Hexo</title>
+  <title>编译器优化与simd指令集 | Hexo</title>
   
 
 
@@ -149,9 +206,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
@@ -167,10 +225,9 @@
       <meta itemprop="name" content="Hexo">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/22/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E4%B8%8Esimd%E6%8C%87%E4%BB%A4%E9%9B%86/" class="post-title-link" itemprop="url">编译器优化与simd指令集</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          编译器优化与simd指令集
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -194,7 +251,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h3 id="x64架构下的寄存器模型"><a href="#x64架构下的寄存器模型" class="headerlink" title="x64架构下的寄存器模型"></a>x64架构下的寄存器模型</h3><p><img src="https://cdn5.maocdn.cn/img/2022/04/22/x86.png" alt="x86.png">寄存器的读写速度比内存快，如果读到寄存器里去计算就比较高效。上图白色的寄存器是32位下就有的。</p>
+        <h3 id="x64架构下的寄存器模型"><a href="#x64架构下的寄存器模型" class="headerlink" title="x64架构下的寄存器模型"></a>x64架构下的寄存器模型</h3><p><img src="https://cdn5.maocdn.cn/img/2022/04/22/x86.png" alt="x86.png">寄存器的读写速度比内存快，如果读到寄存器里去计算就比较高效。上图白色的寄存器是32位下就有的。</p>
 <p>RIP：当前执行代码的地址</p>
 <p>MMX&#x2F;YMM：存储浮点数</p>
 <p>汇编的一些例子：</p>
@@ -324,149 +381,30 @@
 <p><img src="https://pic3.zhimg.com/v2-e4eb32e7f6798045f660ea71d0eea3ca_b.jpg"></p>
 <p>个人总结：感觉积累了很多琐碎的知识，但还是得多去实践才行。</p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/21/tst/">
+        
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="John Doe">
-      <meta itemprop="description" content="">
-    </span>
 
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/21/tst/" class="post-title-link" itemprop="url">tst</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-04-21 18:59:03" itemprop="dateCreated datePublished" datetime="2022-04-21T18:59:03+08:00">2022-04-21</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/04/21/tst/" rel="prev" title="tst">
+      <i class="fa fa-chevron-left"></i> tst
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/21/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="John Doe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/21/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2022-04-21 18:53:40 / Modified: 18:51:26" itemprop="dateCreated datePublished" datetime="2022-04-21T18:53:40+08:00">2022-04-21</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-
   
 
 
@@ -519,6 +457,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#x64%E6%9E%B6%E6%9E%84%E4%B8%8B%E7%9A%84%E5%AF%84%E5%AD%98%E5%99%A8%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">x64架构下的寄存器模型</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
