@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Docker文件系统对于我来说一直是个黑箱，我只知道通过docker exec进入container之后，可以看到container视角的文件系统，但这个文件系统怎么来的，由什么构成，什么是image，什么是container，docker常用的overlayFS到底是什么？这些都一无所知。刷知乎时，偶然看到相关docker rootfs的相关文章，遂开始学习。学习的途中又陆陆续续挖掘出来更多的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="docker_文件结构">
+<meta property="og:url" content="http://example.com/2022/05/01/docker-%E6%96%87%E4%BB%B6%E7%BB%93%E6%9E%84/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Docker文件系统对于我来说一直是个黑箱，我只知道通过docker exec进入container之后，可以看到container视角的文件系统，但这个文件系统怎么来的，由什么构成，什么是image，什么是container，docker常用的overlayFS到底是什么？这些都一无所知。刷知乎时，偶然看到相关docker rootfs的相关文章，遂开始学习。学习的途中又陆陆续续挖掘出来更多的">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-dced6b4033904b1a4de29f3f914452d2_r.jpg?source=172ae18b">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-5c1f3f22a222391dafe762300e34361c_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-96c3001ff30bc079939e67d4194300da_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-3edd6fd0e40c9cd799a2bd7ba785fc7f_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-f5b3a16fead0e7ab855d3d10578a7d7c_b.jpg">
+<meta property="article:published_time" content="2022-05-01T10:35:57.000Z">
+<meta property="article:modified_time" content="2022-05-01T10:38:38.283Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic2.zhimg.com/v2-dced6b4033904b1a4de29f3f914452d2_r.jpg?source=172ae18b">
+
+<link rel="canonical" href="http://example.com/2022/05/01/docker-%E6%96%87%E4%BB%B6%E7%BB%93%E6%9E%84/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>docker_文件结构 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/01/docker-%E6%96%87%E4%BB%B6%E7%BB%93%E6%9E%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          docker_文件结构
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-01 18:35:57 / Modified: 18:38:38" itemprop="dateCreated datePublished" datetime="2022-05-01T18:35:57+08:00">2022-05-01</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="https://pic2.zhimg.com/v2-dced6b4033904b1a4de29f3f914452d2_r.jpg?source=172ae18b" alt="手撕docker文件结构 —— overlayFS，image，container文件结构详解"></p>
+<p>Docker文件系统对于我来说一直是个黑箱，我只知道通过docker exec进入container之后，可以看到container视角的文件系统，但这个文件系统怎么来的，由什么构成，什么是image，什么是container，docker常用的overlayFS到底是什么？这些都一无所知。刷知乎时，偶然看到相关docker rootfs的相关文章，遂开始学习。学习的途中又陆陆续续挖掘出来更多的细节，于是有了这篇文章来总结这段关于docker文件系统的学习。</p>
+<p>我们知道container其实就是一个进程，与普通进程不同的时，container进程通过一些隔离技术做到了container之间的互相隔离。docker container主要有三个核心隔离技术：<code>namespace</code>、<code>cgroups</code>、<code>rootfs</code> 。</p>
+<h3 id="1-Namespace"><a href="#1-Namespace" class="headerlink" title="1. Namespace"></a>1. Namespace</h3><p>Namespace（命名空间）是Linux内核的一项功能，该功能对内核资源进行分区，使一组进程看到一组资源，而另一组进程看到另一组资源。Namespace有很多种，包括下表中列出的7种。</p>
+<p><img src="https://pic1.zhimg.com/v2-5c1f3f22a222391dafe762300e34361c_b.jpg"></p>
+<p>linux namespace的名称以及对应的隔离资源</p>
+<p>其中比较重要的有network，mount和PID namespace。</p>
+<h3 id="2-Cgroups"><a href="#2-Cgroups" class="headerlink" title="2. Cgroups"></a>2. Cgroups</h3><p>Cgroups 是 control groups 的缩写，是Linux内核提供的一种可以限制，记录，隔离进程组(process groups)所使用物理资源的机制。主要功能有：资源限制(Resource limiting)，优先级分配(Prioritization)，资源统计（Accounting)，进程控制（Control）等。：</p>
+<h3 id="3-Rootfs"><a href="#3-Rootfs" class="headerlink" title="3. Rootfs"></a>3. Rootfs</h3><p>rootfs 是 docker 容器在启动时<strong>内部进程可见的文件系统</strong>，即 docker 容器的根目录。当我们运行docker exec命令进入container的时候看到的文件系统就是rootfs。rootfs 通常包含一个操作系统运行所需的文件系统，例如可能包含典型的类 Unix 操作系统中的目录系统，如 &#x2F;dev、&#x2F;proc、&#x2F;bin、&#x2F;etc、&#x2F;lib、&#x2F;usr、&#x2F;tmp 及运行 docker 容器所需的配置文件、工具等。</p>
+<p>就像Linux启动会先用只读模式挂载rootfs，运行完完整性检查之后，再切换成读写模式一样。Docker deamon为container挂载rootfs时，也会先挂载为只读模式，但是与Linux做法不同的是，在挂载完只读的rootfs之后，docker deamon会利用联合挂载技术（Union Mount）在已有的rootfs上再挂一个读写层。container在运行过程中文件系统发生的变化只会写到读写层，并通过whiteout技术隐藏只读层中的旧版本文件。</p>
+<p>上面扯了一大堆术语，相信没接触rootfs的同学已经晕了。我刚接触这玩意儿的时候，也被这些术语怼晕了。但是做完几个实践后，发现吧也就那么回事。接下来我们之间理论加实践一步步手撕这个rootfs。保证跟着我做完一遍你就会发现这个东西真TM简单。</p>
+<hr>
+<h3 id="本文内容"><a href="#本文内容" class="headerlink" title="本文内容"></a>本文内容</h3><ol>
+<li>overlayFS的介绍以及实操</li>
+<li>image file system的介绍以及实操</li>
+<li>container file system的介绍以及实操</li>
+</ol>
+<h3 id="我的环境"><a href="#我的环境" class="headerlink" title="我的环境"></a>我的环境</h3><ul>
+<li>操作系统：Centos 7.4</li>
+<li>Docker版本：20.10.6 (安装可以参照：<a href="https://link.zhihu.com/?target=https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-centos-7">How To Install and Use Docker on CentOS 7</a>)</li>
+<li>Storage Driver: overlay2</li>
+</ul>
+<hr>
+<h2 id="overlayFS的介绍以及实操"><a href="#overlayFS的介绍以及实操" class="headerlink" title="overlayFS的介绍以及实操"></a>overlayFS的介绍以及实操</h2><p>前面铺垫了这么多，终于开始进入正题了。在上文中提到</p>
+<blockquote>
+<p>docker deamon会利用<strong>联合挂载技术（Union Mount</strong>）在已有的rootfs上再挂一个读写层。</p>
+</blockquote>
+<p>什么是联合挂载技术？我的理解是，联合挂载技术是建立在底层文件系统（ext4fs，xfs等等）之上的一种挂载技术，他可以讲原来底层文件系统中的不同目录进行<strong>合并（merge）</strong>，然后向我们呈现出合并之后的一个文件系统。</p>
+<p>而overlayFS则是联合挂载技术的一种实现。除了overlayFS以外还有aufs，VFS，Brtfs，device mapper等技术。虽然实现细节不同，但是他们做的事情都是相同的。Linux内核为Docker提供的overalyFS驱动有2种：overlay2和overlay，overlay2是相对于overlay的一种改进，在inode利用率方面比overlay更有效。</p>
+<p>overlayfs通过三个目录来实现：lower目录、upper目录、以及work目录。三种目录合并出来的目录称为merged目录</p>
+<ul>
+<li>lower目录：可以是多个，是处于最底层的目录，作为<strong>只读层</strong></li>
+<li>upper目录：只有一个，作为<strong>读写层</strong></li>
+<li>work目录：为工作基础目录，挂载后内容会被清空，且在使用过程中其内容用户不可见，</li>
+<li>merged目录：为最后联合挂载完成给用户呈现的统一<strong>视图，</strong>也就是说merged目录里面本身并<strong>没有任何实体文件</strong>，给我们展示的只是参与联合挂载的目录里面文件而已，真正的文件还是在lower和upper中。所以，在merged目录下编辑文件，或者直接编辑lower或upper目录里面的文件都会影响到merged里面的视图展示。</li>
+</ul>
+<p>执行mount命令挂载overlayFS的语法为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mount -t overlay overlay -o lowerdir=lower1:lower2:lower3,upperdir=upper,workdir=work merged_dir</span><br></pre></td></tr></table></figure>
+
+<p>理论也讲的差不到了，我们来看看实际中怎么用overlayFS吧。</p>
+<p>执行以下命令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p /tmp/test A B C worker</span><br><span class="line">cd /tmp/test</span><br><span class="line">echo &quot;From A&quot; &gt; A/a.txt</span><br><span class="line">echo &quot;From A&quot; &gt; A/b.txt</span><br><span class="line">echo &quot;From A&quot; &gt; A/c.txt </span><br><span class="line">echo &quot;From B&quot; &gt; B/a.txt</span><br><span class="line">echo &quot;From B&quot; &gt; B/d.txt</span><br><span class="line">echo &quot;From C&quot; &gt; C/b.txt</span><br><span class="line">echo &quot;From C&quot; &gt; C/e.txt</span><br></pre></td></tr></table></figure>
+
+<p>创建如下图所示的一个文件结构</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server test]# tree .</span><br><span class="line">.</span><br><span class="line">|-- A</span><br><span class="line">|   |-- a.txt</span><br><span class="line">|   |-- b.txt</span><br><span class="line">|   `-- c.txt</span><br><span class="line">|-- B</span><br><span class="line">|   |-- a.txt</span><br><span class="line">|   `-- d.txt</span><br><span class="line">|-- C</span><br><span class="line">|   |-- b.txt</span><br><span class="line">|   `-- e.txt</span><br><span class="line">`-- worker</span><br></pre></td></tr></table></figure>
+
+<p>接下来我们将A和B作为lower目录，C作为upper目录，worker做为work目录，进行联合挂载，并将挂载点放在<code>/tmp/test/merged</code> 上，执行以下命令</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># /tmp/test目录下</span><br><span class="line">mkdir merged</span><br><span class="line">mount -t overlay overlay -o lowerdir=A:B,upperdir=C,workdir=worker /tmp/test/merged</span><br></pre></td></tr></table></figure>
+
+<p>现在我们来看看merged文件夹里面都有啥？首先看看文件结构</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server merged]# tree .</span><br><span class="line">.</span><br><span class="line">|-- a.txt</span><br><span class="line">|-- b.txt</span><br><span class="line">|-- c.txt</span><br><span class="line">|-- d.txt</span><br><span class="line">`-- e.txt</span><br></pre></td></tr></table></figure>
+
+<p>可以看到之前的目录A、B、C被合并到了一起，并且相同文件名的文件会进行“覆盖”，这里覆盖并不是真正的覆盖，而是当合并时候目录中两个文件名称都相同时，merged层目录会显示离它最近层的文件。如下图所示，层级关系中upperdir比lowerdir更靠近merged层，而多个lowerdir的情况下，写的越靠前的目录离merged层目录越近。（这里merged层的file为虚线外框，表示文件实际上并不在merged目录下）</p>
+<p><img src="https://pic3.zhimg.com/v2-96c3001ff30bc079939e67d4194300da_b.jpg"></p>
+<p>overlayFS文件层级关系</p>
+<p>本例子中，C为upperdir，A和B是lowerdir，而mount时写法为<code>lowerdir=A:B</code>，所以A在B上层。整体层级关系为：C &gt; A &gt; B。可以看到目录A与目录B中有一个同名文件<code>a.txt</code>，目前C与目录A之间有一个重名文件<code>b.txt</code>，根据上述论断，merged目录中<code>a.txt</code>应该显示的是A的内容，而<code>b.txt</code>应该显示的是C的内容。我们来确认下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server merged]# cat a.txt </span><br><span class="line">From A</span><br><span class="line">[root@practice-server merged]# cat b.txt </span><br><span class="line">From C</span><br></pre></td></tr></table></figure>
+
+<p>OK，到这为止，相信大家已经搞清楚了联合挂载的层级关系以及覆盖模式。接下来我们来看看联合挂载的读写模式。前面提到upperdir（本例的C）是一个读写层，而lowerdir（本例的A和B）是一个只读层。怎么来验证呢？本例子中lowerdir A和B中有一个<code>a.txt</code>，而该文件在upperdir C中没有，如果我们再merged文件夹中删除该文件会发生什么呢？我们来看看</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server test]# rm merged/a.txt</span><br><span class="line">[root@practice-server test]# tree .</span><br><span class="line">.</span><br><span class="line">|-- A</span><br><span class="line">|   |-- a.txt (没变)</span><br><span class="line">|   |-- b.txt</span><br><span class="line">|   `-- c.txt</span><br><span class="line">|-- B</span><br><span class="line">|   |-- a.txt (没变)</span><br><span class="line">|   `-- d.txt</span><br><span class="line">|-- C</span><br><span class="line">|   |-- a.txt (多出来一个)</span><br><span class="line">|   |-- b.txt</span><br><span class="line">|   `-- e.txt</span><br><span class="line">|-- merged</span><br><span class="line">|   |-- b.txt</span><br><span class="line">|   |-- c.txt</span><br><span class="line">|   |-- d.txt</span><br><span class="line">|   `-- e.txt</span><br><span class="line">`-- worker</span><br><span class="line">    `-- work</span><br></pre></td></tr></table></figure>
+
+<p>在merged目录下面删除 <code>a.txt</code>，merged dir中<code>a.txt</code> 确实是消失了，但是A和B中的a.txt依然存在，且更神奇的是C里面还多出来一个<code>a.txt</code>，我们来看看这个多出来的文件是什么鬼：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server test]# ls -l C/a.txt </span><br><span class="line">c--------- 1 root root 0, 0 May 24 22:51 C/a.txt</span><br></pre></td></tr></table></figure>
+
+<p>可以看到这个多出来的文件很奇怪，文件类型是c，也就是一种字符设备文件。这里我也不卖官司了。其实这个文件被称为<strong>whiteout文件</strong>，它的作用就是覆盖lowerdir中的<code>a.txt</code>来表示该文件被删除的，因为lowerdir中的文件只读，所以只能在upperdir中通过这种“曲线救国”的方式来达到删除只读层文件的效果。</p>
+<p>我们再来做个文件修改玩玩，从上面的文件夹结构可以看到<code>d.txt</code>只在B里面有，如果我在merged里面修改<code>d.txt</code>会怎么样呢？</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server test]# echo &quot;From merged&quot; &gt; merged/d.txt </span><br><span class="line">[root@practice-server test]# cat B/d.txt </span><br><span class="line">From B</span><br><span class="line">[root@practice-server test]# ls C/</span><br><span class="line">a.txt  b.txt  d.txt  e.txt</span><br><span class="line">[root@practice-server test]# cat C/d.txt </span><br><span class="line">From merged</span><br></pre></td></tr></table></figure>
+
+<p>这次我们看到B中的<code>d.txt</code>依然岿然不动，又是在C中创建了一个新的<code>d.txt</code>并付了新的内容 “From merged”，根据之前我们学的覆盖规则，这样在merged视角下，<code>d.txt</code>的内容就从之前的”From B”变成了”From merged”了。值得一提的是，在修改<code>d.txt</code>的时候，应用到了<strong>写时复制（Copy on Write）</strong>技术，在未更改文件内容时，merged目录直接使用lowerdir中的数据，只有当merged目录中数据发生变化时，才会<strong>把变化的文件（也就是本例中的<code>d.txt</code>）内容复制到可读写层（本例中的C）进行修改，并隐藏只读层中的老版本文件</strong>。</p>
+<h2 id="overlayFS小结"><a href="#overlayFS小结" class="headerlink" title="overlayFS小结"></a>overlayFS小结</h2><h3 id="overlayFS如何组织文件"><a href="#overlayFS如何组织文件" class="headerlink" title="overlayFS如何组织文件"></a>overlayFS如何组织文件</h3><p>merged层目录会显示离它最近层的文件。层级关系中upperdir比lowerdir更靠近merged层，而多个lowerdir的情况下，写的越靠前的目录离merged层目录越近。相同文件名的文件会依照层级规则进行“覆盖”。</p>
+<h3 id="overlayFS如何工作"><a href="#overlayFS如何工作" class="headerlink" title="overlayFS如何工作"></a>overlayFS<strong>如何工作</strong></h3><ol>
+<li>读：</li>
+</ol>
+<ul>
+<li>如果文件在容器层（upperdir），直接读取文件；</li>
+<li>如果文件不在容器层（upperdir），则从镜像层（lowerdir）读取；</li>
+</ul>
+<ol start="2">
+<li>写：</li>
+</ol>
+<ul>
+<li>首次写入： 如果在upperdir中不存在，overlay和overlay2执行copy_up操作，把文件从lowdir拷贝到upperdir，由于overlayfs是文件级别的（即使文件只有很少的一点修改，也会产生的copy_up的行为），后续对同一文件的在此写入操作将对已经复制到容器的文件的副本进行操作。值得注意的是，copy_up操作只发生在文件<strong>首次写入</strong>，以后都是只<strong>修改副本</strong>。</li>
+<li>删除文件和目录： 当文件在容器被删除时，在容器层（upperdir）创建<strong>whiteout文件</strong>，镜像层(lowerdir)的文件是不会被删除的，因为他们是只读的，但without文件会阻止他们显示。</li>
+</ul>
+<p>看到这里，可能有的朋友会问，学这玩意儿也太基础了吧，有什么用呢？我们知道image是只读的，而container在启动时，docker deamon会给container mount一个读写层，用来存储container数据，如果container被删除，那么这些数据会被删除。假如我们把A和B看成image，C看成container的读写层，有没有那味儿了！有了上面的基础了，我们差不多可以撕真正的docker image和container了。</p>
+<hr>
+<h2 id="Image-file-system的介绍以及实操"><a href="#Image-file-system的介绍以及实操" class="headerlink" title="Image file system的介绍以及实操"></a>Image file system的介绍以及实操</h2><h3 id="1-image存储结构"><a href="#1-image存储结构" class="headerlink" title="1. image存储结构"></a>1. image存储结构</h3><p>我们先docker pull个ubuntu镜像下来，接下来我们来对他进行解剖。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server ~]# docker pull ubuntu</span><br><span class="line">Using default tag: latest</span><br><span class="line">latest: Pulling from library/ubuntu</span><br><span class="line">345e3491a907: Pull complete </span><br><span class="line">57671312ef6f: Pull complete </span><br><span class="line">5e9250ddb7d0: Pull complete </span><br><span class="line">Digest: sha256:cf31af331f38d1d7158470e095b132acd126a7180a54f263d386da88eb681d93</span><br><span class="line">Status: Downloaded newer image for ubuntu:latest</span><br><span class="line">docker.io/library/ubuntu:latest</span><br></pre></td></tr></table></figure>
+
+<p>当我们pull一个image的时候，可以看到output里面有很多<code>xxxxxxxx: Pull complete</code>，这里面每条表示image的一个层。这些层联合挂载起来构成了image的整体的文件结构。我们来看看ubuntu image的rootfs结构：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@practice-server ~]# docker image inspect ubuntu</span><br><span class="line">[</span><br><span class="line">...</span><br><span class="line">        &quot;GraphDriver&quot;: &#123;</span><br><span class="line">            &quot;Data&quot;: &#123;</span><br><span class="line">                &quot;LowerDir&quot;: &quot;/var/lib/docker/overlay2/31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/diff:/var/lib/docker/overlay2/f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188/diff&quot;,</span><br><span class="line">                &quot;MergedDir&quot;: &quot;/var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/merged&quot;,</span><br><span class="line">                &quot;UpperDir&quot;: &quot;/var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/diff&quot;,</span><br><span class="line">                &quot;WorkDir&quot;: &quot;/var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/work&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;Name&quot;: &quot;overlay2&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>首先我们看看<code>GraphDriver</code>里面的内容，里面记录了<code>ubuntu</code> image的lower，merged，upper和workdir目录，有了上一节中overlay的基础后，这里就不难懂了。如果套用上节的例子的话，我们可以建立如下的对应关系：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">A -&gt; /var/lib/docker/overlay2/31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/diff</span><br><span class="line">B -&gt; /var/lib/docker/overlay2/f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188/diff</span><br><span class="line">C -&gt; /var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/diff</span><br><span class="line">work -&gt; /var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/work</span><br><span class="line">merged -&gt; /var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/merged</span><br></pre></td></tr></table></figure>
+
+<p>如果我们自己做下联合挂载呢， 应该很有意思，执行下面的命令将A，B，C和work mount到<code>/tmp/ubuntu</code>目录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mkdir /tmp/ubuntu</span><br><span class="line"># 把A，B，C，work全部替换进mount -t overlay overlay -o lowerdir=A:B,upperdir=C,workdir=worker /tmp/ubuntu</span><br><span class="line">mount -t overlay overlay -o lowerdir=/var/lib/docker/overlay2/31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/diff:/var/lib/docker/overlay2/f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188/diff,upperdir=/var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/diff,workdir=/var/lib/docker/overlay2/f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/work /tmp/ubuntu</span><br></pre></td></tr></table></figure>
+
+<p>我们再来看看<code>/tmp/ubuntu</code>目录，出现了一个完整的ubuntu 系统目录！</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># ls /tmp/ubuntu/</span><br><span class="line">bin  boot  dev  etc  home  lib  lib32  lib64  libx32  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var</span><br></pre></td></tr></table></figure>
+
+<p>接下来我们来看看这些<code>/var/lib/docker/overlay2/xxxxxx/</code> 里面都有啥，我们就拿A做个例子吧</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># cd /var/lib/docker/overlay2/31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/</span><br><span class="line"># ls -l</span><br><span class="line">total 16</span><br><span class="line">-rw------- 1 root root    0 May 25 09:30 committed</span><br><span class="line">drwxr-xr-x 5 root root 4096 May 25 09:30 diff</span><br><span class="line">-rw-r--r-- 1 root root   26 May 25 09:30 link</span><br><span class="line">-rw-r--r-- 1 root root   28 May 25 09:30 lower</span><br><span class="line">drwx------ 2 root root 4096 May 25 09:30 work</span><br></pre></td></tr></table></figure>
+
+<p>其中比较重要的有diff目录，link和lower文件，他们分别表示：</p>
+<ul>
+<li>diff目录存放的是当前层的文件，可以看到由层高到底顺序(C &gt; A &gt; B)，ubuntu image的各层文件结构。B层贡献最多，C和A层对B层有些许覆盖</li>
+</ul>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># ls f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/diff</span><br><span class="line">run</span><br><span class="line"># ls 31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/diff</span><br><span class="line">etc  usr  var</span><br><span class="line"># ls f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188/diff</span><br><span class="line">bin  boot  dev  etc  home  lib  lib32  lib64  libx32  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>link和lower的内容分别是当前层和下一层的软链接名字。如果本层是当前层是底层，则lower文件不存在。真正的软链接文件都存在<code>/var/lib/docker/overlay2/</code>目录下 ，分别指向对应层的diff目录</li>
+</ul>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># cat link</span><br><span class="line">IJ3AMQTOZLJLGGKI2QD4ZUYMWL</span><br><span class="line"># cat lower </span><br><span class="line">l/LOUK5YCGUFNOCFMQ3XJOCNSZLY</span><br><span class="line"># ls /var/lib/docker/overlay2/l</span><br><span class="line">lrwxrwxrwx 1 root root 72 May 25 09:30 ADEOHJ2KRX5FRFFMLOR4TIEMQJ -&gt; ../f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f/diff</span><br><span class="line">lrwxrwxrwx 1 root root 72 May 25 09:30 IJ3AMQTOZLJLGGKI2QD4ZUYMWL -&gt; ../31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401/diff</span><br><span class="line">lrwxrwxrwx 1 root root 72 May 25 09:30 LOUK5YCGUFNOCFMQ3XJOCNSZLY -&gt; ../f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188/diff</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-Image-元数据（metadata）"><a href="#2-Image-元数据（metadata）" class="headerlink" title="2. Image 元数据（metadata）"></a>2. Image 元数据（metadata）</h3><p>镜像元数据存储在了<code>/var/lib/docker/image/&lt;storage_driver&gt;/imagedb/content/sha256/</code>目录下，名称是以镜像ID命名的文件，镜像ID可通过docker images查看，这些文件以json的形式保存了该镜像的rootfs信息、镜像创建时间、构建历史信息、所用容器、包括启动的Entrypoint和CMD等等。</p>
+<p>例如，本例中ubuntu镜像的id为<code>7e0aa2d69a15</code>:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># docker images -a</span><br><span class="line">REPOSITORY   TAG       IMAGE ID       CREATED       SIZE</span><br><span class="line">ubuntu       latest    7e0aa2d69a15   4 weeks ago   72.7MB</span><br></pre></td></tr></table></figure>
+
+<p>本例中ubuntu镜像的元数据为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># cd /var/lib/docker/image/overlay2/imagedb/content/sha256</span><br><span class="line"># ls</span><br><span class="line">7e0aa2d69a153215c790488ed1fcec162015e973e49962d438e18249d16fa9bd</span><br><span class="line"># cat 7e0aa2d69a153215c790488ed1fcec162015e973e49962d438e18249d16fa9bd </span><br><span class="line">&#123;&quot;architecture&quot;:&quot;amd64&quot;,&quot;config&quot;:&#123;&quot;Hostname&quot;:&quot;&quot;,&quot;Domainname&quot;:&quot;&quot;,&quot;User&quot;:&quot;&quot;,&quot;AttachStdin&quot;:false,&quot;AttachStdout&quot;:false,&quot;AttachStderr&quot;:false,&quot;Tty&quot;:false,&quot;OpenStdin&quot;:false,&quot;StdinOnce&quot;:false,&quot;Env&quot;:[&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;],&quot;Cmd&quot;:[&quot;/bin/bash&quot;],&quot;Image&quot;:&quot;sha256:9d6065aabb67e06ae6b6db4f0ed5ac83f5e83a147fa5eb32b414d10583f6ce2d&quot;,&quot;Volumes&quot;:null,&quot;WorkingDir&quot;:&quot;&quot;,&quot;Entrypoint&quot;:null,&quot;OnBuild&quot;:null,&quot;Labels&quot;:null&#125;,&quot;container&quot;:&quot;8be4461fbc3e2d9db869e63a5e140b10a085b1799c12e8a83b32aba9344eba78&quot;,&quot;container_config&quot;:&#123;&quot;Hostname&quot;:&quot;8be4461fbc3e&quot;,&quot;Domainname&quot;:&quot;&quot;,&quot;User&quot;:&quot;&quot;,&quot;AttachStdin&quot;:false,&quot;AttachStdout&quot;:false,&quot;AttachStderr&quot;:false,&quot;Tty&quot;:false,&quot;OpenStdin&quot;:false,&quot;StdinOnce&quot;:false,&quot;Env&quot;:[&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;],&quot;Cmd&quot;:[&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;#(nop) &quot;,&quot;CMD [\&quot;/bin/bash\&quot;]&quot;],&quot;Image&quot;:&quot;sha256:9d6065aabb67e06ae6b6db4f0ed5ac83f5e83a147fa5eb32b414d10583f6ce2d&quot;,&quot;Volumes&quot;:null,&quot;WorkingDir&quot;:&quot;&quot;,&quot;Entrypoint&quot;:null,&quot;OnBuild&quot;:null,&quot;Labels&quot;:&#123;&#125;&#125;,&quot;created&quot;:&quot;2021-04-23T22:21:37.49442735Z&quot;,&quot;docker_version&quot;:&quot;19.03.12&quot;,&quot;history&quot;:[&#123;&quot;created&quot;:&quot;2021-04-23T22:21:34.1865992Z&quot;,&quot;created_by&quot;:&quot;/bin/sh -c #(nop) ADD file:5c44a80f547b7d68b550b0e64aef898b361666857abf9a5c8f3f8d0567b8e8e4 in / &quot;&#125;,&#123;&quot;created&quot;:&quot;2021-04-23T22:21:35.354865637Z&quot;,&quot;created_by&quot;:&quot;/bin/sh -c set -xe \t\t\u0026\u0026 echo &#x27;#!/bin/sh&#x27; \u003e /usr/sbin/policy-rc.d \t\u0026\u0026 echo &#x27;exit 101&#x27; \u003e\u003e /usr/sbin/policy-rc.d \t\u0026\u0026 chmod +x /usr/sbin/policy-rc.d \t\t\u0026\u0026 dpkg-divert --local --rename --add /sbin/initctl \t\u0026\u0026 cp -a /usr/sbin/policy-rc.d /sbin/initctl \t\u0026\u0026 sed -i &#x27;s/^exit.*/exit 0/&#x27; /sbin/initctl \t\t\u0026\u0026 echo &#x27;force-unsafe-io&#x27; \u003e /etc/dpkg/dpkg.cfg.d/docker-apt-speedup \t\t\u0026\u0026 echo &#x27;DPkg::Post-Invoke &#123; \&quot;rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true\&quot;; &#125;;&#x27; \u003e /etc/apt/apt.conf.d/docker-clean \t\u0026\u0026 echo &#x27;APT::Update::Post-Invoke &#123; \&quot;rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true\&quot;; &#125;;&#x27; \u003e\u003e /etc/apt/apt.conf.d/docker-clean \t\u0026\u0026 echo &#x27;Dir::Cache::pkgcache \&quot;\&quot;; Dir::Cache::srcpkgcache \&quot;\&quot;;&#x27; \u003e\u003e /etc/apt/apt.conf.d/docker-clean \t\t\u0026\u0026 echo &#x27;Acquire::Languages \&quot;none\&quot;;&#x27; \u003e /etc/apt/apt.conf.d/docker-no-languages \t\t\u0026\u0026 echo &#x27;Acquire::GzipIndexes \&quot;true\&quot;; Acquire::CompressionTypes::Order:: \&quot;gz\&quot;;&#x27; \u003e /etc/apt/apt.conf.d/docker-gzip-indexes \t\t\u0026\u0026 echo &#x27;Apt::AutoRemove::SuggestsImportant \&quot;false\&quot;;&#x27; \u003e /etc/apt/apt.conf.d/docker-autoremove-suggests&quot;&#125;,&#123;&quot;created&quot;:&quot;2021-04-23T22:21:36.274883825Z&quot;,&quot;created_by&quot;:&quot;/bin/sh -c [ -z \&quot;$(apt-get indextargets)\&quot; ]&quot;,&quot;empty_layer&quot;:true&#125;,&#123;&quot;created&quot;:&quot;2021-04-23T22:21:37.334286535Z&quot;,&quot;created_by&quot;:&quot;/bin/sh -c mkdir -p /run/systemd \u0026\u0026 echo &#x27;docker&#x27; \u003e /run/systemd/container&quot;&#125;,&#123;&quot;created&quot;:&quot;2021-04-23T22:21:37.49442735Z&quot;,&quot;created_by&quot;:&quot;/bin/sh -c #(nop)  CMD [\&quot;/bin/bash\&quot;]&quot;,&quot;empty_layer&quot;:true&#125;],&quot;os&quot;:&quot;linux&quot;,&quot;rootfs&quot;:&#123;&quot;type&quot;:&quot;layers&quot;,&quot;diff_ids&quot;:[&quot;sha256:ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439&quot;,&quot;sha256:63c99163f47292f80f9d24c5b475751dbad6dc795596e935c5c7f1c73dc08107&quot;,&quot;sha256:2f140462f3bcf8cf3752461e27dfd4b3531f266fa10cda716166bd3a78a19103&quot;]&#125;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们重点来看看rootfs信息，docker inspect下这个ubuntu image，可以看到有个<code>RootFS</code>项，里面记录了一些sha256 哈希值，这又是什么呢？</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># docker image inspect ubuntu</span><br><span class="line">[</span><br><span class="line">...</span><br><span class="line">        &quot;RootFS&quot;: &#123;</span><br><span class="line">            &quot;Type&quot;: &quot;layers&quot;,</span><br><span class="line">            &quot;Layers&quot;: [</span><br><span class="line">                &quot;sha256:ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439&quot;,</span><br><span class="line">                &quot;sha256:63c99163f47292f80f9d24c5b475751dbad6dc795596e935c5c7f1c73dc08107&quot;,</span><br><span class="line">                &quot;sha256:2f140462f3bcf8cf3752461e27dfd4b3531f266fa10cda716166bd3a78a19103&quot;</span><br><span class="line">            ]</span><br><span class="line">        &#125;,</span><br><span class="line">...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>其实上面的每个<code>sha256:</code>后面的哈希值称为diff_id，其排列也是有顺序的，从上到下依次表示镜像层的最低层到最顶层。前面我们讲到ubuntu的每层文件都存储<em>在</em><code>/var/lib/docker/overlay2/&lt;cache_id&gt;</code>目录下，diff_id如何关联到cache_id呢？具体说来，docker 利用 rootfs 中的每个diff_id 和历史信息计算出与之对应的内容寻址的索引(chainID) ，而chaiID则关联了cache_id，进而关联到每一个镜像层的镜像文件。</p>
+<p>这里一下子冒出来很多个ID，我现在罗列一下，希望别把大家搞混，每个层都有3个ID：</p>
+<ul>
+<li>cache_id: 可以在<code>/var/lib/docker/overlay2</code>中查看，也可以通过docker inpect 查看GraphDriver中的dir ID。</li>
+<li>diff_id：通过docker inpect查看RootFS中的Layers项目</li>
+<li>chain_id: 可以在<code>/var/lib/docker/image/overlay2/layerdb/sha256</code>查看</li>
+</ul>
+<blockquote>
+<p>关于docker更多ID，可以参考：<br>1. <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/47381629">Kingdo：docker中镜像存储中各个ID的详细介绍（imageID\cacheID\diffID…）</a><br>2. <a href="https://link.zhihu.com/?target=https://gist.github.com/aaronlehmann/b42a2eaf633fc949f93b%23id-definitions-and-calculations">1.10 Distribution Changes Design Doc</a></p>
+</blockquote>
+<p>具体关系为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">diff_id -&gt; chain_id -&gt; cache_id</span><br></pre></td></tr></table></figure>
+
+<p>例如本例子中：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># layer_id有：</span><br><span class="line"># ls /var/lib/docker/overlay2</span><br><span class="line">31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401</span><br><span class="line">f03933382744f6dd3888f8a3eac00c19279559288fc4e959b8bc8540d9a7d188</span><br><span class="line">f676bb9051441dec8f324cdecfb7fe6e4feefd6baa6e1a3a49f612e21668628f</span><br><span class="line"></span><br><span class="line"># diff_id有</span><br><span class="line">&quot;sha256:ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439&quot;,</span><br><span class="line">&quot;sha256:63c99163f47292f80f9d24c5b475751dbad6dc795596e935c5c7f1c73dc08107&quot;,</span><br><span class="line">&quot;sha256:2f140462f3bcf8cf3752461e27dfd4b3531f266fa10cda716166bd3a78a19103&quot;</span><br><span class="line"></span><br><span class="line"># chain_id有</span><br><span class="line"># ls /var/lib/docker/image/overlay2/layerdb/sha256</span><br><span class="line">3dd8c8d4fd5b59d543c8f75a67cdfaab30aef5a6d99aea3fe74d8cc69d4e7bf2  </span><br><span class="line">ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439</span><br><span class="line">8d8dceacec7085abcab1f93ac1128765bc6cf0caac334c821e01546bd96eb741</span><br></pre></td></tr></table></figure>
+
+<p>从diff_id到chain_id的算法为：</p>
+<ul>
+<li>如果该镜像层是最底层(没有父镜像层)，该层的 diff_id 便是 chain_id。</li>
+<li>该镜像层的 chain_id 计算公式为 <code>chainID=sha256(父层chain_id+&quot; &quot;+本层diff_id)</code>，也就是根据父镜像层的 chain_id 加上一个空格和当前层的 diff_id，再计算 SHA256 校验码。</li>
+</ul>
+<p>比如，我们知道RootFS的diff_id从上到下依次表示镜像层的最低层到最顶层根据上述算法，所以本例子中底层的diff_id为<code>ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439</code> ，此外我们可以发现有一个chain_id与该diff_id相同。这也好理解，因为对于底层来讲diff_id 便是 chain_id。</p>
+<p>知道了chain_id之后如何查到cache_id呢？这就要请layer元数据上场了。</p>
+<h3 id="3-Layer-元数据"><a href="#3-Layer-元数据" class="headerlink" title="3. Layer 元数据"></a>3. Layer 元数据</h3><p>Docker 中定义了 Layer 和 RWLayer 两种接口，分别用来定义只读层和可读写层的一些操作，又定义了 roLayer 和 mountedLayer，分别实现了上述两种接口。其中:</p>
+<ul>
+<li>roLayer 用于描述不可改变的镜像层，它的元数据位于 <code>/var/lib/docker/image/&lt;storage_driver&gt;/layerdb/sha256/&lt;chain_id&gt;</code></li>
+<li>mountedLayer 用于描述可读写的容器层。它的元数据位于<code>/var/lib/docker/image/&lt;storage_driver&gt;/layerdb/mounts/&lt;container_id&gt;/</code></li>
+</ul>
+<p>我们先来看看 roLayer，下面都有哪些元数据：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"># cd /var/lib/docker/image/overlay2/layerdb/sha256</span><br><span class="line"># tree .</span><br><span class="line">.</span><br><span class="line">|-- 3dd8c8d4fd5b59d543c8f75a67cdfaab30aef5a6d99aea3fe74d8cc69d4e7bf2</span><br><span class="line">|   |-- cache-id</span><br><span class="line">|   |-- diff</span><br><span class="line">|   |-- parent</span><br><span class="line">|   |-- size</span><br><span class="line">|   `-- tar-split.json.gz</span><br><span class="line">|-- 8d8dceacec7085abcab1f93ac1128765bc6cf0caac334c821e01546bd96eb741</span><br><span class="line">|   |-- cache-id</span><br><span class="line">|   |-- diff</span><br><span class="line">|   |-- parent</span><br><span class="line">|   |-- size</span><br><span class="line">|   `-- tar-split.json.gz</span><br><span class="line">`-- ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439</span><br><span class="line">    |-- cache-id</span><br><span class="line">    |-- diff</span><br><span class="line">    |-- size</span><br><span class="line">    `-- tar-split.json.gz</span><br></pre></td></tr></table></figure>
+
+<p>可以看到每个文件夹的名字都是chain_id，每个文件夹下面有5个文件，分别是：</p>
+<ul>
+<li>cache-id：cache-id是docker下载layer的时候在本地生成的一个随机uuid，指向真正存放layer文件的地方。</li>
+<li>diff：文件存放layer的diff_id。</li>
+<li>parent：parent文件存放当前layer的父layer的diff_id，注意：对于最底层的layer来说，由于没有父layer，所以没有这个文件，例如本例子中的<code>ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439</code> 。</li>
+<li>size：当前layer的大小，单位是字节。</li>
+<li>tar-split.json.gz：layer压缩包的split文件，通过这个文件可以还原layer的tar包，在docker save导出image的时候会用到，详情可参考<a href="https://link.zhihu.com/?target=https://github.com/vbatts/tar-split">https://github.com/vbatts/tar-split</a>。</li>
+</ul>
+<p>至此我们终于知道了怎么从chain_id找到cache_id了。我们以<code>8d8dceacec7085abcab1f93ac1128765bc6cf0caac334c821e01546bd96eb741</code>为例子展示下上述文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># cd 8d8dceacec7085abcab1f93ac1128765bc6cf0caac334c821e01546bd96eb741</span><br><span class="line"></span><br><span class="line"># cat cache-id </span><br><span class="line">31c6f22cb1d72609fc59f0225e74fac0c5cb54825ce1e475f37fff3160dcb401</span><br><span class="line"># 通过该layer的chain_id查看文件</span><br><span class="line"># ls /var/lib/docker/image/overlay2/layerdb/sha256/8d8dceacec7085abcab1f93ac1128765bc6cf0caac334c821e01546bd96eb741</span><br><span class="line">committed  diff  link  lower  work</span><br><span class="line"></span><br><span class="line"># cat diff </span><br><span class="line">sha256:63c99163f47292f80f9d24c5b475751dbad6dc795596e935c5c7f1c73dc08107</span><br><span class="line"></span><br><span class="line"># cat parent</span><br><span class="line">sha256:ccdbb80308cc5ef43b605ac28fac29c6a597f89f5a169bbedbb8dec29c987439</span><br><span class="line"></span><br><span class="line"># cat size </span><br><span class="line">811</span><br></pre></td></tr></table></figure>
+
+<p>如果总结下所有文件夹之间的关联，可以获得如下图：</p>
+<p><img src="https://pic4.zhimg.com/v2-3edd6fd0e40c9cd799a2bd7ba785fc7f_b.jpg"></p>
+<p>文件夹与各种ID之间的关联图</p>
+<p>将Layer元数据时我们提到有2种Layer：roLayer 和 mountedLayer。上文只讲了roLayer，接下来我们在Container 文件系统里面再看看mountedLayer。</p>
+<hr>
+<h2 id="Container-file-system的介绍以及实操"><a href="#Container-file-system的介绍以及实操" class="headerlink" title="Container file system的介绍以及实操"></a>Container file system的介绍以及实操</h2><p>一个容器完整的层应由三个部分组成：</p>
+<ol>
+<li>镜像层：也称为rootfs，提供容器启动的文件系统。rootfs也就是我们上一节中分析的image文件。镜像层属于roLayer。</li>
+<li>init层： 用于修改容器中一些文件如&#x2F;etc&#x2F;hostname，&#x2F;etc&#x2F;hosts，&#x2F;etc&#x2F;resolv.conf等。init层属于mountedLayer。</li>
+<li>容器层：使用联合挂载统一给用户提供的可读写目录。容器层属于mountedLayer。</li>
+</ol>
+<p>镜像层我们已经在上一节中进行了详细分析，这一节我们主要看看init层和容器层。我们启动一个容器来看看这2层都长啥样。先启动一个container</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># docker run -it --name test ubuntu /bin/bash</span><br><span class="line">root@d37c50151d3d:/# </span><br></pre></td></tr></table></figure>
+
+<p>另起一个窗口，来到mountedLayer的元数据目录<code>/var/lib/docker/image/&lt;storage_driver&gt;/layerdb/mounts/&lt;container_id&gt;/</code>查看该container的init层与容器层元数据</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># cd /var/lib/docker/image/overlay2/layerdb/mounts/d37c50151d3df6c196f9c1d5a392f48f8d695e2b4026b874ab37e926b1561151</span><br><span class="line"># ls</span><br><span class="line">init-id  mount-id  parent</span><br><span class="line"># cat init-id</span><br><span class="line">825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756-init</span><br><span class="line"># cat mount-id</span><br><span class="line">825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756</span><br><span class="line"># cat parent</span><br><span class="line">sha256:3dd8c8d4fd5b59d543c8f75a67cdfaab30aef5a6d99aea3fe74d8cc69d4e7bf2</span><br></pre></td></tr></table></figure>
+
+<p>可以看到该文件夹有3种文件：</p>
+<ul>
+<li>mount-id：存储在&#x2F;var&#x2F;lib&#x2F;docker&#x2F;overlay2&#x2F;的目录名称。</li>
+<li>init-id：initID是在mountID后加了一个-init，同时initID就是存储在&#x2F;var&#x2F;lib&#x2F;docker&#x2F;overlay2&#x2F;的目录名称。</li>
+<li>parent：容器所基于的<strong>镜像的最上层的chain_id</strong>。（注意这个parent和roLayer元数据的parent的不同之处）</li>
+</ul>
+<p>首先我们到<code>/var/lib/docker/overlay2/</code> 来看看init layer的内容：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># cd /var/lib/docker/overlay2/</span><br><span class="line"># tree 825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756-init/</span><br><span class="line">825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756-init/</span><br><span class="line">|-- committed</span><br><span class="line">|-- diff</span><br><span class="line">|   |-- dev</span><br><span class="line">|   |   |-- console</span><br><span class="line">|   |   |-- pts</span><br><span class="line">|   |   `-- shm</span><br><span class="line">|   `-- etc</span><br><span class="line">|       |-- hostname</span><br><span class="line">|       |-- hosts</span><br><span class="line">|       |-- mtab -&gt; /proc/mounts</span><br><span class="line">|       `-- resolv.conf</span><br><span class="line">|-- link</span><br><span class="line">|-- lower</span><br><span class="line">`-- work</span><br><span class="line">    `-- work</span><br></pre></td></tr></table></figure>
+
+<p>可以看到除了一些常规文件以外，diff里面只有一些&#x2F;etc&#x2F;hosts、&#x2F;etc&#x2F;resolv.conf等配置文件。需要这一层的原因是当容器启动时候，这些本该属于image层的文件或目录，比如hostname，用户需要修改，但是image层又不允许修改，所以启动时候通过单独挂载一层init层，通过修改init层中的文件达到修改这些文件目的。而这些修改往往只读当前容器生效，而在docker commit提交为镜像时候，并不会将init层提交。</p>
+<p>我们再来看看容器层的内容：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># cd 825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756</span><br><span class="line"># ls</span><br><span class="line">diff  link  lower  merged  work</span><br><span class="line"># ls diff/</span><br><span class="line"># ls merged/</span><br><span class="line">bin  boot  dev  etc  home  lib  lib32  lib64  libx32  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var</span><br></pre></td></tr></table></figure>
+
+<p>我们可以看到merged目录就是容器内部进程所看到的文件时图，他是由镜像层，init层与容器层联合挂载而来的。（就像第一节中overlayFS例子中的，A，B，C，work一起挂载得到的merged目录一样）。</p>
+<p>另外可以看到diff文件夹是空的，说明容器还未对文件进行任何修改。如果我们对某文件进行修改的话会怎么样了。比如我们在容器中删除<code>/etc/fstab</code> 文件。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># 在docker container中执行</span><br><span class="line">root@d37c50151d3d:/etc# rm fstab </span><br><span class="line"># 在/var/lib/docker/overlay2/下查看</span><br><span class="line">cd /var/lib/docker/overlay2/825a9532de7b62c0752b71d0d318b64b2826f133fe8c061f0afa68993f4cc756/diff/etc</span><br><span class="line"># ls -l</span><br><span class="line">total 0</span><br><span class="line">c--------- 1 root root 0, 0 May 25 15:32 fstab</span><br></pre></td></tr></table></figure>
+
+<p>可以看到diff文件夹下多出来一个<code>/etc/fstab</code>的whiteout文件，此文件覆盖了下层的<code>/etc/fstab</code>，导致我们在container中看不到它了，但它在image中依然存在。是不是会想起overlayFS的那个例子了！<br>最后再来一张图总结下，container文件系统中各文件之间的关系。</p>
+<p><img src="https://pic1.zhimg.com/v2-f5b3a16fead0e7ab855d3d10578a7d7c_b.jpg"></p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>写到这里相信没被搞晕的各位应该能理解docker文件结构了，下面借<a href="https://link.zhihu.com/?target=https://www.cnblogs.com/sparkdev/p/9092082.html">什么是 docker 镜像</a>中的总结，列出下docker 镜像设计上的关键技术。作为本文的收尾。</p>
+<p><strong>联合挂载</strong></p>
+<p>联合挂载技术将挂载点的原目录与被挂载内容进行整合，使得最终可见的文件系统将会包含整合之后的各层的文件和目录</p>
+<p><strong>分层</strong><br>docker 镜像是采用分层的方式构建的，每个镜像都由一系列的 “镜像层” 组成。分层结构是 docker 镜像如此轻量的重要原因。当需要修改容器镜像内的某个文件时，只对处于最上方的读写层进行变动，不覆写下层已有文件系统的内容，已有文件在只读层中的原始版本仍然存在，但会被读写层中的新版本所隐藏。当使用 docker commit 提交这个修改过的容器文件系统为一个新的镜像时，保存的内容仅为最上层读写文件系统中被更新过的文件。分层达到了在不的容器同镜像之间共享镜像层的效果。</p>
+<p><strong>写时复制</strong><br>docker 镜像使用了写时复制(copy-on-write)的策略，在多个容器之间共享镜像，每个容器在启动的时候并不需要单独复制一份镜像文件，而是将所有镜像层以只读的方式挂载到一个挂载点，再在上面覆盖一个可读写的容器层。在未更改文件内容时，所有容器共享同一份数据，只有在 docker 容器运行过程中文件系统发生变化时，才会把变化的文件内容写到可读写层，并隐藏只读层中的老版本文件。写时复制配合分层机制减少了镜像对磁盘空间的占用和容器启动时间。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/04/26/filesystem/" rel="prev" title="filesystem">
+      <i class="fa fa-chevron-left"></i> filesystem
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-Namespace"><span class="nav-number">1.</span> <span class="nav-text">1. Namespace</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Cgroups"><span class="nav-number">2.</span> <span class="nav-text">2. Cgroups</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-Rootfs"><span class="nav-number">3.</span> <span class="nav-text">3. Rootfs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AC%E6%96%87%E5%86%85%E5%AE%B9"><span class="nav-number">4.</span> <span class="nav-text">本文内容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%88%91%E7%9A%84%E7%8E%AF%E5%A2%83"><span class="nav-number">5.</span> <span class="nav-text">我的环境</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#overlayFS%E7%9A%84%E4%BB%8B%E7%BB%8D%E4%BB%A5%E5%8F%8A%E5%AE%9E%E6%93%8D"><span class="nav-number"></span> <span class="nav-text">overlayFS的介绍以及实操</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#overlayFS%E5%B0%8F%E7%BB%93"><span class="nav-number"></span> <span class="nav-text">overlayFS小结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#overlayFS%E5%A6%82%E4%BD%95%E7%BB%84%E7%BB%87%E6%96%87%E4%BB%B6"><span class="nav-number">1.</span> <span class="nav-text">overlayFS如何组织文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#overlayFS%E5%A6%82%E4%BD%95%E5%B7%A5%E4%BD%9C"><span class="nav-number">2.</span> <span class="nav-text">overlayFS如何工作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Image-file-system%E7%9A%84%E4%BB%8B%E7%BB%8D%E4%BB%A5%E5%8F%8A%E5%AE%9E%E6%93%8D"><span class="nav-number"></span> <span class="nav-text">Image file system的介绍以及实操</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-image%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">1. image存储结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Image-%E5%85%83%E6%95%B0%E6%8D%AE%EF%BC%88metadata%EF%BC%89"><span class="nav-number">2.</span> <span class="nav-text">2. Image 元数据（metadata）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-Layer-%E5%85%83%E6%95%B0%E6%8D%AE"><span class="nav-number">3.</span> <span class="nav-text">3. Layer 元数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Container-file-system%E7%9A%84%E4%BB%8B%E7%BB%8D%E4%BB%A5%E5%8F%8A%E5%AE%9E%E6%93%8D"><span class="nav-number"></span> <span class="nav-text">Container file system的介绍以及实操</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number"></span> <span class="nav-text">总结</span></a></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
