@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="[GAMES101] 投影变换和模型变换透视变换和投影透视变换的推导原理课上闫老师已经得很详细了，然后留下一个问题，关于透视变换后远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远），我就记录一下透视变换矩阵的推导，和这个课后问题的思考吧。  透视变换-1  透视变换-2 首先有两个假设：  近平面 np 上的任意点的位置在透视变换前后不变。 远平面 fp 上的任意点的 z 坐标在透视变">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Games101">
+<meta property="og:url" content="http://example.com/2022/05/05/Games101/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="[GAMES101] 投影变换和模型变换透视变换和投影透视变换的推导原理课上闫老师已经得很详细了，然后留下一个问题，关于透视变换后远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远），我就记录一下透视变换矩阵的推导，和这个课后问题的思考吧。  透视变换-1  透视变换-2 首先有两个假设：  近平面 np 上的任意点的位置在透视变换前后不变。 远平面 fp 上的任意点的 z 坐标在透视变">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-f877509d98c338a3addab644079e4686_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3E0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(f,n)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27%3Cz">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-f877509d98c338a3addab644079e4686_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3E0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(f,n)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27%3Cz">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=x%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=y%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=A%27">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=A(x,y,z,1)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=P">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=Q%3E0">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=(f,n)">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=z%27%3Cz">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg">
+<meta property="article:published_time" content="2022-05-05T07:54:59.000Z">
+<meta property="article:modified_time" content="2022-05-05T07:59:55.395Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic3.zhimg.com/v2-f877509d98c338a3addab644079e4686_b.jpg">
+
+<link rel="canonical" href="http://example.com/2022/05/05/Games101/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Games101 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/05/Games101/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Games101
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-05 15:54:59 / Modified: 15:59:55" itemprop="dateCreated datePublished" datetime="2022-05-05T15:54:59+08:00">2022-05-05</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="GAMES101-投影变换和模型变换"><a href="#GAMES101-投影变换和模型变换" class="headerlink" title="[GAMES101] 投影变换和模型变换"></a>[GAMES101] 投影变换和模型变换</h2><h2 id="透视变换和投影"><a href="#透视变换和投影" class="headerlink" title="透视变换和投影"></a>透视变换和投影</h2><h3 id="透视变换的推导"><a href="#透视变换的推导" class="headerlink" title="透视变换的推导"></a>透视变换的推导</h3><p>原理课上闫老师已经得很详细了，然后留下一个问题，关于透视变换后远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远），我就记录一下透视变换矩阵的推导，和这个课后问题的思考吧。</p>
+<p><img src="https://pic3.zhimg.com/v2-f877509d98c338a3addab644079e4686_b.jpg"></p>
+<p>透视变换-1</p>
+<p><img src="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg"></p>
+<p>透视变换-2</p>
+<p>首先有两个假设：</p>
+<ol>
+<li>近平面 np 上的任意点的位置在透视变换前后不变。</li>
+<li>远平面 fp 上的任意点的 z 坐标在透视变换前后不变，且 fp 平面中心点的位置不变（保证 fp 平面不垂直于z轴平移）。</li>
+</ol>
+<p>（关于假设2我有点疑问，在实际使用时远平面应该怎么选？）</p>
+<p>Step1.</p>
+<p>设近平面 np 和远平面 fp 之间任意一点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET" alt="[公式]"> 经透视变换 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 后得到 <img src="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET" alt="[公式]"> ，变换过程则是</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C" alt="[公式]"></p>
+<p>其中 <img src="https://www.zhihu.com/equation?tex=P+" alt="[公式]"> 就是我们要求的透视变换矩阵。</p>
+<p>Step2.</p>
+<p>由相似三角形 <img src="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27" alt="[公式]"> 可得 <img src="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y" alt="[公式]"> ，同理 <img src="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x" alt="[公式]"> ，带入 <img src="https://www.zhihu.com/equation?tex=x%27" alt="[公式]"> 和 <img src="https://www.zhihu.com/equation?tex=y%27" alt="[公式]"> 并做一下齐次坐标的变换（全部乘以 <img src="https://www.zhihu.com/equation?tex=z" alt="[公式]"> ），得到 <img src="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET" alt="[公式]"></p>
+<p>Step3.</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>只要会矩阵乘法就能很容易看出 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 矩阵的大部分参数，得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>Step4.</p>
+<p>由于 <img src="https://www.zhihu.com/equation?tex=PA=A%27" alt="[公式]"> 是个恒等式，也就说它在任意位置都成立，考虑上面的2个假设，我们来描述一下在 np 平面和 fp 平面上的点变换前后的情况。</p>
+<p>设 <img src="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+" alt="[公式]"> 是 np 平面上任意一点， <img src="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET" alt="[公式]"> 是 fp 平面上任意一点，根据假设可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C" alt="[公式]"></p>
+<p>从上面两式的第三行计算可以得到方程组</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>解方程组得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>带入所有未知数最后得到结果</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>推导完毕。</p>
+<hr>
+<h3 id="透视变换的思考题"><a href="#透视变换的思考题" class="headerlink" title="透视变换的思考题"></a>透视变换的思考题</h3><p>透视变换的最后来讨论一下闫老师留的问题，远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远）？</p>
+<p>假设一个满足条件的任意点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)" alt="[公式]"> ，使用上面推导得到的 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 进行透视变换，可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>得出 <img src="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f" alt="[公式]"></p>
+<p>设</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C" alt="[公式]"></p>
+<p>先令</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C" alt="[公式]"></p>
+<p>由于我们是用右手系，朝 -z 方向观察，所以 <img src="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C" alt="[公式]"></p>
+<p>解出</p>
+<p><img src="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C" alt="[公式]"></p>
+<p>另外，如果令 <img src="https://www.zhihu.com/equation?tex=Q%3E0" alt="[公式]"> 的话会解出 <img src="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)" alt="[公式]"> 不成立所以抛弃。</p>
+<p>综上所述，在 <img src="https://www.zhihu.com/equation?tex=(f,n)" alt="[公式]"> 区间内一直有 <img src="https://www.zhihu.com/equation?tex=z%27%3Cz" alt="[公式]"> ，也就是说透视变换后点将变得更远了。</p>
+<hr>
+<h3 id="作业中的透视投影"><a href="#作业中的透视投影" class="headerlink" title="作业中的透视投影"></a>作业中的透视投影</h3><p>作业中需要实现的 get_projection_matrix 函数包括了完整的透视投影变换，完整的透视投影过程被描述为先“挤压”（就是上面推导的透视变换）再加一个正交变换，正交变换可以分三步：</p>
+<ol>
+<li>将一个顶点平移到原点</li>
+<li>各个边缩放到长度为 2</li>
+<li>将中心平移到原点，最终使整个立方体的 xy 平面上的值在[-1,1]内</li>
+</ol>
+<p>所以正交变换矩阵可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>所以 get_projection_matrix 内需要实现的变换可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p>算好后把这个矩阵直接抄到函数里就可以了。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_projection_matrix</span><span class="params">(<span class="type">float</span> eye_fov, <span class="type">float</span> aspect_ratio,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">float</span> zNear, <span class="type">float</span> zFar)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// Students will implement this function</span></span><br><span class="line"></span><br><span class="line">    Eigen::Matrix4f projection = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the projection matrix for the given parameters.</span></span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    <span class="type">float</span> eye_fov_radian = <span class="built_in">DEG2RAD</span>(eye_fov);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> t = std::<span class="built_in">tan</span>(eye_fov_radian / <span class="number">2</span>) * std::<span class="built_in">abs</span>(zNear);</span><br><span class="line">    <span class="type">float</span> r = t * aspect_ratio;</span><br><span class="line">    <span class="type">float</span> l = -r;</span><br><span class="line">    <span class="type">float</span> b = -t;</span><br><span class="line"></span><br><span class="line">    projection &lt;&lt; <span class="number">2</span> * zNear / (r - l), <span class="number">0</span>, (l + r) / (l - r), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">2</span> * zNear / (t - b), (b + t) / (b - t), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, (zNear + zFar) / (zNear - zFar), <span class="number">-2</span> * zNear * zFar / (zNear - zFar),</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> projection;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="模型变换"><a href="#模型变换" class="headerlink" title="模型变换"></a>模型变换</h2><p>作业中的模型变换要求实现的模型变换仅包括旋转，并且可以用键盘控制角度。先实现简单的绕z轴旋转，然后实现绕任意轴旋转。</p>
+<h3 id="绕z轴旋转"><a href="#绕z轴旋转" class="headerlink" title="绕z轴旋转"></a>绕z轴旋转</h3><p>三维坐标绕轴旋转的变换和二维的类似，偷个懒暂时就不推导了，根据旋转公式直接写函数即可</p>
+<p><img src="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg"></p>
+<p>模型变换-1</p>
+<p><img src="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg"></p>
+<p>模型变换-2</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_model_matrix</span><span class="params">(<span class="type">float</span> rotation_angle)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the model matrix for rotating the triangle around the Z axis.</span></span><br><span class="line">    Eigen::Matrix4f trans;</span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(rotation_angle);</span><br><span class="line">    trans &lt;&lt; std::<span class="built_in">cos</span>(radian), -std::<span class="built_in">sin</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            std::<span class="built_in">sin</span>(radian), std::<span class="built_in">cos</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    model = trans * model;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="绕任意轴旋转"><a href="#绕任意轴旋转" class="headerlink" title="绕任意轴旋转"></a>绕任意轴旋转</h3><p>Rodrigues（罗德里格斯）旋转方程，是一个很牛的方程，只需要原向量，加上旋转轴向量和角度，就可以得出旋转后的向量，很合理，不过想想就知道这个东西应该是很常用的，所以还是推导一下吧，详情请看下面我的另一篇文章：</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/451579313">王二：[数学]罗德里格旋转公式推导（Rodrigues’ rotation formula）3 赞同 · 0 评论文章<img src="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg"></a></p>
+<p>有了上面的推导后，一样直接把矩阵抄到代码里即可</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_rotation</span><span class="params">(Vector3f axis, <span class="type">float</span> angle)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Use Rodrigues rotation formula</span></span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(angle);</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f I = Eigen::Matrix3f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f M;</span><br><span class="line">    Eigen::Matrix3f Rk;</span><br><span class="line">    Rk &lt;&lt; <span class="number">0</span>, -axis[<span class="number">2</span>], axis[<span class="number">1</span>],</span><br><span class="line">        axis[<span class="number">2</span>], <span class="number">0</span>, -axis[<span class="number">0</span>],</span><br><span class="line">        -axis[<span class="number">1</span>], axis[<span class="number">0</span>], <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    M = I + (<span class="number">1</span> - <span class="built_in">cos</span>(radian)) * Rk * Rk + <span class="built_in">sin</span>(radian) * Rk;</span><br><span class="line"></span><br><span class="line">    model &lt;&lt; <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>原理课上闫老师已经得很详细了，然后留下一个问题，关于透视变换后远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远），我就记录一下透视变换矩阵的推导，和这个课后问题的思考吧。</p>
+<p><img src="https://pic3.zhimg.com/v2-f877509d98c338a3addab644079e4686_b.jpg"></p>
+<p>透视变换-1</p>
+<p><img src="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg"></p>
+<p>透视变换-2</p>
+<p>首先有两个假设：</p>
+<ol>
+<li>近平面 np 上的任意点的位置在透视变换前后不变。</li>
+<li>远平面 fp 上的任意点的 z 坐标在透视变换前后不变，且 fp 平面中心点的位置不变（保证 fp 平面不垂直于z轴平移）。</li>
+</ol>
+<p>（关于假设2我有点疑问，在实际使用时远平面应该怎么选？）</p>
+<p>Step1.</p>
+<p>设近平面 np 和远平面 fp 之间任意一点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET" alt="[公式]"> 经透视变换 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 后得到 <img src="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET" alt="[公式]"> ，变换过程则是</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C" alt="[公式]"></p>
+<p>其中 <img src="https://www.zhihu.com/equation?tex=P+" alt="[公式]"> 就是我们要求的透视变换矩阵。</p>
+<p>Step2.</p>
+<p>由相似三角形 <img src="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27" alt="[公式]"> 可得 <img src="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y" alt="[公式]"> ，同理 <img src="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x" alt="[公式]"> ，带入 <img src="https://www.zhihu.com/equation?tex=x%27" alt="[公式]"> 和 <img src="https://www.zhihu.com/equation?tex=y%27" alt="[公式]"> 并做一下齐次坐标的变换（全部乘以 <img src="https://www.zhihu.com/equation?tex=z" alt="[公式]"> ），得到 <img src="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET" alt="[公式]"></p>
+<p>Step3.</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>只要会矩阵乘法就能很容易看出 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 矩阵的大部分参数，得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>Step4.</p>
+<p>由于 <img src="https://www.zhihu.com/equation?tex=PA=A%27" alt="[公式]"> 是个恒等式，也就说它在任意位置都成立，考虑上面的2个假设，我们来描述一下在 np 平面和 fp 平面上的点变换前后的情况。</p>
+<p>设 <img src="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+" alt="[公式]"> 是 np 平面上任意一点， <img src="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET" alt="[公式]"> 是 fp 平面上任意一点，根据假设可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C" alt="[公式]"></p>
+<p>从上面两式的第三行计算可以得到方程组</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>解方程组得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>带入所有未知数最后得到结果</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>推导完毕。</p>
+<hr>
+<h3 id="透视变换的思考题-1"><a href="#透视变换的思考题-1" class="headerlink" title="透视变换的思考题"></a>透视变换的思考题</h3><p>透视变换的最后来讨论一下闫老师留的问题，远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远）？</p>
+<p>假设一个满足条件的任意点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)" alt="[公式]"> ，使用上面推导得到的 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 进行透视变换，可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>得出 <img src="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f" alt="[公式]"></p>
+<p>设</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C" alt="[公式]"></p>
+<p>先令</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C" alt="[公式]"></p>
+<p>由于我们是用右手系，朝 -z 方向观察，所以 <img src="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C" alt="[公式]"></p>
+<p>解出</p>
+<p><img src="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C" alt="[公式]"></p>
+<p>另外，如果令 <img src="https://www.zhihu.com/equation?tex=Q%3E0" alt="[公式]"> 的话会解出 <img src="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)" alt="[公式]"> 不成立所以抛弃。</p>
+<p>综上所述，在 <img src="https://www.zhihu.com/equation?tex=(f,n)" alt="[公式]"> 区间内一直有 <img src="https://www.zhihu.com/equation?tex=z%27%3Cz" alt="[公式]"> ，也就是说透视变换后点将变得更远了。</p>
+<hr>
+<h3 id="作业中的透视投影-1"><a href="#作业中的透视投影-1" class="headerlink" title="作业中的透视投影"></a>作业中的透视投影</h3><p>作业中需要实现的 get_projection_matrix 函数包括了完整的透视投影变换，完整的透视投影过程被描述为先“挤压”（就是上面推导的透视变换）再加一个正交变换，正交变换可以分三步：</p>
+<ol>
+<li>将一个顶点平移到原点</li>
+<li>各个边缩放到长度为 2</li>
+<li>将中心平移到原点，最终使整个立方体的 xy 平面上的值在[-1,1]内</li>
+</ol>
+<p>所以正交变换矩阵可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>所以 get_projection_matrix 内需要实现的变换可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p>算好后把这个矩阵直接抄到函数里就可以了。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_projection_matrix</span><span class="params">(<span class="type">float</span> eye_fov, <span class="type">float</span> aspect_ratio,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">float</span> zNear, <span class="type">float</span> zFar)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// Students will implement this function</span></span><br><span class="line"></span><br><span class="line">    Eigen::Matrix4f projection = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the projection matrix for the given parameters.</span></span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    <span class="type">float</span> eye_fov_radian = <span class="built_in">DEG2RAD</span>(eye_fov);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> t = std::<span class="built_in">tan</span>(eye_fov_radian / <span class="number">2</span>) * std::<span class="built_in">abs</span>(zNear);</span><br><span class="line">    <span class="type">float</span> r = t * aspect_ratio;</span><br><span class="line">    <span class="type">float</span> l = -r;</span><br><span class="line">    <span class="type">float</span> b = -t;</span><br><span class="line"></span><br><span class="line">    projection &lt;&lt; <span class="number">2</span> * zNear / (r - l), <span class="number">0</span>, (l + r) / (l - r), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">2</span> * zNear / (t - b), (b + t) / (b - t), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, (zNear + zFar) / (zNear - zFar), <span class="number">-2</span> * zNear * zFar / (zNear - zFar),</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> projection;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="模型变换-1"><a href="#模型变换-1" class="headerlink" title="模型变换"></a>模型变换</h2><p>作业中的模型变换要求实现的模型变换仅包括旋转，并且可以用键盘控制角度。先实现简单的绕z轴旋转，然后实现绕任意轴旋转。</p>
+<h3 id="绕z轴旋转-1"><a href="#绕z轴旋转-1" class="headerlink" title="绕z轴旋转"></a>绕z轴旋转</h3><p>三维坐标绕轴旋转的变换和二维的类似，偷个懒暂时就不推导了，根据旋转公式直接写函数即可</p>
+<p><img src="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg"></p>
+<p>模型变换-1</p>
+<p><img src="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg"></p>
+<p>模型变换-2</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_model_matrix</span><span class="params">(<span class="type">float</span> rotation_angle)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the model matrix for rotating the triangle around the Z axis.</span></span><br><span class="line">    Eigen::Matrix4f trans;</span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(rotation_angle);</span><br><span class="line">    trans &lt;&lt; std::<span class="built_in">cos</span>(radian), -std::<span class="built_in">sin</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            std::<span class="built_in">sin</span>(radian), std::<span class="built_in">cos</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    model = trans * model;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="绕任意轴旋转-1"><a href="#绕任意轴旋转-1" class="headerlink" title="绕任意轴旋转"></a>绕任意轴旋转</h3><p>Rodrigues（罗德里格斯）旋转方程，是一个很牛的方程，只需要原向量，加上旋转轴向量和角度，就可以得出旋转后的向量，很合理，不过想想就知道这个东西应该是很常用的，所以还是推导一下吧，详情请看下面我的另一篇文章：</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/451579313">王二：[数学]罗德里格旋转公式推导（Rodrigues’ rotation formula）3 赞同 · 0 评论文章<img src="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg"></a></p>
+<p>有了上面的推导后，一样直接把矩阵抄到代码里即可</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_rotation</span><span class="params">(Vector3f axis, <span class="type">float</span> angle)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Use Rodrigues rotation formula</span></span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(angle);</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f I = Eigen::Matrix3f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f M;</span><br><span class="line">    Eigen::Matrix3f Rk;</span><br><span class="line">    Rk &lt;&lt; <span class="number">0</span>, -axis[<span class="number">2</span>], axis[<span class="number">1</span>],</span><br><span class="line">        axis[<span class="number">2</span>], <span class="number">0</span>, -axis[<span class="number">0</span>],</span><br><span class="line">        -axis[<span class="number">1</span>], axis[<span class="number">0</span>], <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    M = I + (<span class="number">1</span> - <span class="built_in">cos</span>(radian)) * Rk * Rk + <span class="built_in">sin</span>(radian) * Rk;</span><br><span class="line"></span><br><span class="line">    model &lt;&lt; <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id=""><a href="#" class="headerlink" title=""></a></h3><p>透视变换-1</p>
+<p><img src="https://pic4.zhimg.com/v2-9eadb2505d8bc77e3902e824aa2e93a3_b.jpg"></p>
+<p>透视变换-2</p>
+<p>首先有两个假设：</p>
+<ol>
+<li>近平面 np 上的任意点的位置在透视变换前后不变。</li>
+<li>远平面 fp 上的任意点的 z 坐标在透视变换前后不变，且 fp 平面中心点的位置不变（保证 fp 平面不垂直于z轴平移）。</li>
+</ol>
+<p>（关于假设2我有点疑问，在实际使用时远平面应该怎么选？）</p>
+<p>Step1.</p>
+<p>设近平面 np 和远平面 fp 之间任意一点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)%5ET" alt="[公式]"> 经透视变换 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 后得到 <img src="https://www.zhihu.com/equation?tex=A%27(x%27,y%27,z%27,1)%5ET" alt="[公式]"> ，变换过程则是</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=A%27%5C%5C" alt="[公式]"></p>
+<p>其中 <img src="https://www.zhihu.com/equation?tex=P+" alt="[公式]"> 就是我们要求的透视变换矩阵。</p>
+<p>Step2.</p>
+<p>由相似三角形 <img src="https://www.zhihu.com/equation?tex=%5CDelta+ANA%27+%5Csim+%5CDelta+NON%27" alt="[公式]"> 可得 <img src="https://www.zhihu.com/equation?tex=y%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y" alt="[公式]"> ，同理 <img src="https://www.zhihu.com/equation?tex=x%27=%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x" alt="[公式]"> ，带入 <img src="https://www.zhihu.com/equation?tex=x%27" alt="[公式]"> 和 <img src="https://www.zhihu.com/equation?tex=y%27" alt="[公式]"> 并做一下齐次坐标的变换（全部乘以 <img src="https://www.zhihu.com/equation?tex=z" alt="[公式]"> ），得到 <img src="https://www.zhihu.com/equation?tex=A%27(nx,ny,z%5E2,z)%5ET" alt="[公式]"></p>
+<p>Step3.</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=%5Cleft%5B%5Cbegin%7Bmatrix%7D+p_%7B11%7D&p_%7B12%7D&p_%7B13%7D&p_%7B14%7D%5C%5C+p_%7B21%7D&p_%7B22%7D&p_%7B23%7D&p_%7B24%7D%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+p_%7B41%7D&p_%7B42%7D&p_%7B43%7D&p_%7B44%7D%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+z%5E2%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>只要会矩阵乘法就能很容易看出 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 矩阵的大部分参数，得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>Step4.</p>
+<p>由于 <img src="https://www.zhihu.com/equation?tex=PA=A%27" alt="[公式]"> 是个恒等式，也就说它在任意位置都成立，考虑上面的2个假设，我们来描述一下在 np 平面和 fp 平面上的点变换前后的情况。</p>
+<p>设 <img src="https://www.zhihu.com/equation?tex=M(x_m,y_m,n,1)%5ET+" alt="[公式]"> 是 np 平面上任意一点， <img src="https://www.zhihu.com/equation?tex=F(x_f,y_f,f,1)%5ET" alt="[公式]"> 是 fp 平面上任意一点，根据假设可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PM=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_m%5C%5C+y_m%5C%5C+n%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_m%5C%5C+ny_m%5C%5C+n%5E2%5C%5C+n+%5Cend%7Bmatrix%7D+%5Cright%5D+=M%27=M+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=PF=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+p_%7B31%7D&p_%7B32%7D&p_%7B33%7D&p_%7B34%7D%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x_f%5C%5C+y_f%5C%5C+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx_f%5C%5C+ny_f%5C%5C+f%5E2%5C%5C+f+%5Cend%7Bmatrix%7D+%5Cright%5D+=F%27+%5C%5C" alt="[公式]"></p>
+<p>从上面两式的第三行计算可以得到方程组</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B31%7D=p_%7B32%7D=0%5C%5C+p_%7B33%7D+%5Ccdot+n+++p_%7B34%7D+=+n%5E2%5C%5C+p_%7B33%7D+%5Ccdot+f++p_%7B34%7D+=+f%5E2+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>解方程组得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=%5Cbegin%7Bcases%7D+p_%7B33%7D+=n+f%5C%5C+p_%7B34%7D+=+-nf%5C%5C+%5Cend%7Bcases%7D%5C%5C" alt="[公式]"></p>
+<p>带入所有未知数最后得到结果</p>
+<p><img src="https://www.zhihu.com/equation?tex=P=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>推导完毕。</p>
+<hr>
+<h3 id="透视变换的思考题-2"><a href="#透视变换的思考题-2" class="headerlink" title="透视变换的思考题"></a>透视变换的思考题</h3><p>透视变换的最后来讨论一下闫老师留的问题，远近平面中间的点，z坐标是变大还是变小（离观察点更近还是更远）？</p>
+<p>假设一个满足条件的任意点 <img src="https://www.zhihu.com/equation?tex=A(x,y,z,1)" alt="[公式]"> ，使用上面推导得到的 <img src="https://www.zhihu.com/equation?tex=P" alt="[公式]"> 进行透视变换，可以得到</p>
+<p><img src="https://www.zhihu.com/equation?tex=PA=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+n&0&0&0%5C%5C+0&n&0&0%5C%5C+0&0&n+f&-nf%5C%5C+0&0&1&0%5C%5C+%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D+x%5C%5C+y%5C%5C+z%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+nx%5C%5C+ny%5C%5C+(n+f)z-nf%5C%5C+z+%5Cend%7Bmatrix%7D+%5Cright%5D+=+%5Cleft%5B%5Cbegin%7Bmatrix%7D+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+x%5C%5C+%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+y%5C%5C+(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f%5C%5C+1+%5Cend%7Bmatrix%7D+%5Cright%5D+=A%27+%5C%5C" alt="[公式]"></p>
+<p>得出 <img src="https://www.zhihu.com/equation?tex=z%27=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f" alt="[公式]"></p>
+<p>设</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q+=+z%27-z%5C%5C+%5Cqquad%5Cqquad%5Cqquad%5C+%5C+%5C+%5C+%5C;%5C,=((n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f)-z%5C%5C+%5C%5C" alt="[公式]"></p>
+<p>先令</p>
+<p><img src="https://www.zhihu.com/equation?tex=Q%3C0+%5C%5C" alt="[公式]"></p>
+<p>由于我们是用右手系，朝 -z 方向观察，所以 <img src="https://www.zhihu.com/equation?tex=f%3Cz%3Cn%3C0" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=(n+f)-%5Cfrac%7Bn%7D%7Bz%7D%5Ccdot+f-z+%3C+0%5C%5C+z%5E2-(n+f)z+nf%3C0%5C%5C+(z-n)(z-f)%3C0+%5C%5C" alt="[公式]"></p>
+<p>解出</p>
+<p><img src="https://www.zhihu.com/equation?tex=z%5Cin(f,n)+%5C%5C" alt="[公式]"></p>
+<p>另外，如果令 <img src="https://www.zhihu.com/equation?tex=Q%3E0" alt="[公式]"> 的话会解出 <img src="https://www.zhihu.com/equation?tex=z%5Cin(-%5Cinfty,+f)%5Ccup(n,+%5Cinfty)" alt="[公式]"> 不成立所以抛弃。</p>
+<p>综上所述，在 <img src="https://www.zhihu.com/equation?tex=(f,n)" alt="[公式]"> 区间内一直有 <img src="https://www.zhihu.com/equation?tex=z%27%3Cz" alt="[公式]"> ，也就是说透视变换后点将变得更远了。</p>
+<hr>
+<h3 id="作业中的透视投影-2"><a href="#作业中的透视投影-2" class="headerlink" title="作业中的透视投影"></a>作业中的透视投影</h3><p>作业中需要实现的 get_projection_matrix 函数包括了完整的透视投影变换，完整的透视投影过程被描述为先“挤压”（就是上面推导的透视变换）再加一个正交变换，正交变换可以分三步：</p>
+<ol>
+<li>将一个顶点平移到原点</li>
+<li>各个边缩放到长度为 2</li>
+<li>将中心平移到原点，最终使整个立方体的 xy 平面上的值在[-1,1]内</li>
+</ol>
+<p>所以正交变换矩阵可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-1%5C%5C++0&1&0&-1%5C%5C++0&0&1&-1%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&0%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&0%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&0%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5Cleft%5B%5Cbegin%7Bmatrix%7D++1&0&0&-l%5C%5C++0&1&0&-b%5C%5C++0&0&1&-n%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Borth%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D+%5C%5C" alt="[公式]"></p>
+<p>所以 get_projection_matrix 内需要实现的变换可以表示为</p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2%7D%7Br-l%7D&0&0&-%5Cfrac%7Br+l%7D%7Br-l%7D%5C%5C++0&%5Cfrac%7B2%7D%7Bt-b%7D&0&-%5Cfrac%7Bt+b%7D%7Bt-b%7D%5C%5C++0&0&%5Cfrac%7B2%7D%7Bn-f%7D&-%5Cfrac%7Bn+f%7D%7Bn-f%7D%5C%5C++0&0&0&1%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5Cleft%5B%5Cbegin%7Bmatrix%7D++n&0&0&0%5C%5C++0&n&0&0%5C%5C++0&0&n+f&-nf%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p><img src="https://www.zhihu.com/equation?tex=M_%7Bper%7D=+%5Cleft%5B%5Cbegin%7Bmatrix%7D++%5Cfrac%7B2n%7D%7Br-l%7D&0&%5Cfrac%7Bl+r%7D%7Bl-r%7D&0%5C%5C++0&%5Cfrac%7B2n%7D%7Bt-b%7D&%5Cfrac%7Bb+t%7D%7Bb-t%7D&0%5C%5C++0&0&%5Cfrac%7Bn+f%7D%7Bn-f%7D&%5Cfrac%7B2fn%7D%7Bf-n%7D%5C%5C++0&0&1&0%5C%5C++%5Cend%7Bmatrix%7D+%5Cright%5D++%5C%5C" alt="[公式]"></p>
+<p>算好后把这个矩阵直接抄到函数里就可以了。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_projection_matrix</span><span class="params">(<span class="type">float</span> eye_fov, <span class="type">float</span> aspect_ratio,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      <span class="type">float</span> zNear, <span class="type">float</span> zFar)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// Students will implement this function</span></span><br><span class="line"></span><br><span class="line">    Eigen::Matrix4f projection = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the projection matrix for the given parameters.</span></span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    <span class="type">float</span> eye_fov_radian = <span class="built_in">DEG2RAD</span>(eye_fov);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> t = std::<span class="built_in">tan</span>(eye_fov_radian / <span class="number">2</span>) * std::<span class="built_in">abs</span>(zNear);</span><br><span class="line">    <span class="type">float</span> r = t * aspect_ratio;</span><br><span class="line">    <span class="type">float</span> l = -r;</span><br><span class="line">    <span class="type">float</span> b = -t;</span><br><span class="line"></span><br><span class="line">    projection &lt;&lt; <span class="number">2</span> * zNear / (r - l), <span class="number">0</span>, (l + r) / (l - r), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">2</span> * zNear / (t - b), (b + t) / (b - t), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, (zNear + zFar) / (zNear - zFar), <span class="number">-2</span> * zNear * zFar / (zNear - zFar),</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> projection;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="模型变换-2"><a href="#模型变换-2" class="headerlink" title="模型变换"></a>模型变换</h2><p>作业中的模型变换要求实现的模型变换仅包括旋转，并且可以用键盘控制角度。先实现简单的绕z轴旋转，然后实现绕任意轴旋转。</p>
+<h3 id="绕z轴旋转-2"><a href="#绕z轴旋转-2" class="headerlink" title="绕z轴旋转"></a>绕z轴旋转</h3><p>三维坐标绕轴旋转的变换和二维的类似，偷个懒暂时就不推导了，根据旋转公式直接写函数即可</p>
+<p><img src="https://pic2.zhimg.com/v2-a4f664c69beadbf2de835f9c9d25ca89_b.jpg"></p>
+<p>模型变换-1</p>
+<p><img src="https://pic2.zhimg.com/v2-2c561fa1074692fd4fae40b747f607ed_b.jpg"></p>
+<p>模型变换-2</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_model_matrix</span><span class="params">(<span class="type">float</span> rotation_angle)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> Implement this function</span></span><br><span class="line">    <span class="comment">// Create the model matrix for rotating the triangle around the Z axis.</span></span><br><span class="line">    Eigen::Matrix4f trans;</span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(rotation_angle);</span><br><span class="line">    trans &lt;&lt; std::<span class="built_in">cos</span>(radian), -std::<span class="built_in">sin</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            std::<span class="built_in">sin</span>(radian), std::<span class="built_in">cos</span>(radian), <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>,</span><br><span class="line">            <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="comment">// Then return it.</span></span><br><span class="line">    model = trans * model;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="绕任意轴旋转-2"><a href="#绕任意轴旋转-2" class="headerlink" title="绕任意轴旋转"></a>绕任意轴旋转</h3><p>Rodrigues（罗德里格斯）旋转方程，是一个很牛的方程，只需要原向量，加上旋转轴向量和角度，就可以得出旋转后的向量，很合理，不过想想就知道这个东西应该是很常用的，所以还是推导一下吧，详情请看下面我的另一篇文章：</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/451579313">王二：[数学]罗德里格旋转公式推导（Rodrigues’ rotation formula）3 赞同 · 0 评论文章<img src="https://pic1.zhimg.com/v2-d994c77efd15a078087403681ede84b0_180x120.jpg"></a></p>
+<p>有了上面的推导后，一样直接把矩阵抄到代码里即可</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Eigen::Matrix4f <span class="title">get_rotation</span><span class="params">(Vector3f axis, <span class="type">float</span> angle)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Use Rodrigues rotation formula</span></span><br><span class="line">    <span class="type">float</span> radian = <span class="built_in">DEG2RAD</span>(angle);</span><br><span class="line">    Eigen::Matrix4f model = Eigen::Matrix4f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f I = Eigen::Matrix3f::<span class="built_in">Identity</span>();</span><br><span class="line">    Eigen::Matrix3f M;</span><br><span class="line">    Eigen::Matrix3f Rk;</span><br><span class="line">    Rk &lt;&lt; <span class="number">0</span>, -axis[<span class="number">2</span>], axis[<span class="number">1</span>],</span><br><span class="line">        axis[<span class="number">2</span>], <span class="number">0</span>, -axis[<span class="number">0</span>],</span><br><span class="line">        -axis[<span class="number">1</span>], axis[<span class="number">0</span>], <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    M = I + (<span class="number">1</span> - <span class="built_in">cos</span>(radian)) * Rk * Rk + <span class="built_in">sin</span>(radian) * Rk;</span><br><span class="line"></span><br><span class="line">    model &lt;&lt; <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">1</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">0</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">1</span>), <span class="built_in">M</span>(<span class="number">2</span>, <span class="number">2</span>), <span class="number">0</span>,</span><br><span class="line">        <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> model;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/01/C-%E6%A8%A1%E6%9D%BF%E5%85%83%E7%BC%96%E7%A8%8B/" rel="prev" title="C++模板元编程">
+      <i class="fa fa-chevron-left"></i> C++模板元编程
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#GAMES101-%E6%8A%95%E5%BD%B1%E5%8F%98%E6%8D%A2%E5%92%8C%E6%A8%A1%E5%9E%8B%E5%8F%98%E6%8D%A2"><span class="nav-number">1.</span> <span class="nav-text">[GAMES101] 投影变换和模型变换</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%8F%E8%A7%86%E5%8F%98%E6%8D%A2%E5%92%8C%E6%8A%95%E5%BD%B1"><span class="nav-number">2.</span> <span class="nav-text">透视变换和投影</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%8F%E8%A7%86%E5%8F%98%E6%8D%A2%E7%9A%84%E6%8E%A8%E5%AF%BC"><span class="nav-number">2.1.</span> <span class="nav-text">透视变换的推导</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%8F%E8%A7%86%E5%8F%98%E6%8D%A2%E7%9A%84%E6%80%9D%E8%80%83%E9%A2%98"><span class="nav-number">2.2.</span> <span class="nav-text">透视变换的思考题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%9C%E4%B8%9A%E4%B8%AD%E7%9A%84%E9%80%8F%E8%A7%86%E6%8A%95%E5%BD%B1"><span class="nav-number">2.3.</span> <span class="nav-text">作业中的透视投影</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%8F%98%E6%8D%A2"><span class="nav-number">3.</span> <span class="nav-text">模型变换</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95z%E8%BD%B4%E6%97%8B%E8%BD%AC"><span class="nav-number">3.1.</span> <span class="nav-text">绕z轴旋转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95%E4%BB%BB%E6%84%8F%E8%BD%B4%E6%97%8B%E8%BD%AC"><span class="nav-number">3.2.</span> <span class="nav-text">绕任意轴旋转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%8F%E8%A7%86%E5%8F%98%E6%8D%A2%E7%9A%84%E6%80%9D%E8%80%83%E9%A2%98-1"><span class="nav-number">3.3.</span> <span class="nav-text">透视变换的思考题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%9C%E4%B8%9A%E4%B8%AD%E7%9A%84%E9%80%8F%E8%A7%86%E6%8A%95%E5%BD%B1-1"><span class="nav-number">3.4.</span> <span class="nav-text">作业中的透视投影</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%8F%98%E6%8D%A2-1"><span class="nav-number">4.</span> <span class="nav-text">模型变换</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95z%E8%BD%B4%E6%97%8B%E8%BD%AC-1"><span class="nav-number">4.1.</span> <span class="nav-text">绕z轴旋转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95%E4%BB%BB%E6%84%8F%E8%BD%B4%E6%97%8B%E8%BD%AC-1"><span class="nav-number">4.2.</span> <span class="nav-text">绕任意轴旋转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link"><span class="nav-number">4.3.</span> <span class="nav-text"></span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%8F%E8%A7%86%E5%8F%98%E6%8D%A2%E7%9A%84%E6%80%9D%E8%80%83%E9%A2%98-2"><span class="nav-number">4.4.</span> <span class="nav-text">透视变换的思考题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%9C%E4%B8%9A%E4%B8%AD%E7%9A%84%E9%80%8F%E8%A7%86%E6%8A%95%E5%BD%B1-2"><span class="nav-number">4.5.</span> <span class="nav-text">作业中的透视投影</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%8F%98%E6%8D%A2-2"><span class="nav-number">5.</span> <span class="nav-text">模型变换</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95z%E8%BD%B4%E6%97%8B%E8%BD%AC-2"><span class="nav-number">5.1.</span> <span class="nav-text">绕z轴旋转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%95%E4%BB%BB%E6%84%8F%E8%BD%B4%E6%97%8B%E8%BD%AC-2"><span class="nav-number">5.2.</span> <span class="nav-text">绕任意轴旋转</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
