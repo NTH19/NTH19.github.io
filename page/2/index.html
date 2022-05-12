@@ -160,6 +160,271 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/22/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BA%E8%AE%BF%E5%AD%98%E4%BC%98%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/04/22/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BA%E8%AE%BF%E5%AD%98%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">深入浅出访存优化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-04-22 19:37:13 / Modified: 20:38:39" itemprop="dateCreated datePublished" datetime="2022-04-22T19:37:13+08:00">2022-04-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p> 在程序执行中，有时候性能瓶颈出现在内存读取上，而不是cpu上。</p>
+<img title="" src="https://cdn5.maocdn.cn/img/2022/04/22/time.md.png" alt="" width="634">
+
+<p>如果处理的数据都在cache上则能显著提高程序执行速度。如下为cpu cache结构示意图。</p>
+<p><img src="https://cdn5.maocdn.cn/img/2022/04/22/cpucache.md.png"></p>
+<p><img src="https://cdn5.maocdn.cn/img/2022/04/22/cache.md.png"></p>
+<p>通过这一原因可以很好的解释下图中出现折线的原因</p>
+<p><img src="https://cdn5.maocdn.cn/img/2022/04/22/memorybound.md.png"></p>
+<p>对于写操作时则是利用赃位进行逐级递减的懒惰写入。</p>
+<p>同时由于cpu一次读取的字节数远大于一条指令所处理的字节数。所有我们应该设计紧凑的数据结构来时缓存命中率尽可能的高。</p>
+<p>SOA比AOS快便是此原因。</p>
+<p>申请内存尽量对齐到页  _mm_malloc</p>
+<p> 预取缓存                       _mm_prefetch</p>
+<p>所以memset 0，和-1快的原因在于4倍矢量化，和stream指令预存到缓存队列中。</p>
+<p>c++标准库中的new通常是对齐到16字节。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/22/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E4%B8%8Esimd%E6%8C%87%E4%BB%A4%E9%9B%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/04/22/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E4%B8%8Esimd%E6%8C%87%E4%BB%A4%E9%9B%86/" class="post-title-link" itemprop="url">编译器优化与simd指令集</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-04-22 08:23:17 / Modified: 20:38:42" itemprop="dateCreated datePublished" datetime="2022-04-22T08:23:17+08:00">2022-04-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="x64架构下的寄存器模型"><a href="#x64架构下的寄存器模型" class="headerlink" title="x64架构下的寄存器模型"></a>x64架构下的寄存器模型</h3><p><img src="https://cdn5.maocdn.cn/img/2022/04/22/x86.png" alt="x86.png">寄存器的读写速度比内存快，如果读到寄存器里去计算就比较高效。上图白色的寄存器是32位下就有的。</p>
+<p>RIP：当前执行代码的地址</p>
+<p>MMX&#x2F;YMM：存储浮点数</p>
+<p>汇编的一些例子：</p>
+<p><img src="https://cdn5.maocdn.cn/img/2022/04/22/X_4JIK7_1FS64.png" alt="X_4JIK7_1FS64.png"></p>
+<p>这是一个函数调用的过程。函数调用就是一个压栈、出栈的过程。这里的栈就是CPU寄存器里的某个指针所指向的一片内存，这个指针通常位于ESP&#x2F;RSP寄存器。 这里编译器发现程序只用到了a变量，其他变量都没用到，因此也就不需要压栈，于是编译器会把代码优化成这样：</p>
+<p><img src="https://cdn5.maocdn.cn/img/2022/04/22/yh.png" alt="yh.png"></p>
+<p>把压栈操作都去掉了，直接把a变量从edi送到eax里。这个需要开启编译器的-O3选项。在我自己的电脑上测试一下：</p>
+<p>main.cpp里的代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>#include <iostream><br>using namespace std;<br>​<br>​<br>int func(int a, int b, int c, int d, int e, int f);<br>int func(int a, int b, int c, int d, int e, int f) {<br>    return a;<br>}<br>​<br>​<br>int main() {<br>​<br>    int a &#x3D; 0, b &#x3D; 0, c &#x3D; 0, d &#x3D; 0, e &#x3D; 0, f &#x3D; 0;<br>    int k &#x3D; func(a, b, c, d, e, f);<br>    return 0;<br>}</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>我们通过g++ -fomit-frame-pointer -fverbose-asm -S main.cpp -o main.S这个指令编译出一个汇编语言的源码，我这里编译出来的代码有点多，就截取函数调用部分：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">_main:</span><br><span class="line">LFB1446:</span><br><span class="line">    .cfi_startproc</span><br><span class="line">    pushl   %ebp     #</span><br><span class="line">    .cfi_def_cfa_offset 8</span><br><span class="line">    .cfi_offset 5, -8</span><br><span class="line">    movl    %esp, %ebp   #,</span><br><span class="line">    .cfi_def_cfa_register 5</span><br><span class="line">    andl    $-16, %esp   #,</span><br><span class="line">    subl    $64, %esp    #,</span><br><span class="line">    call    ___main  #</span><br><span class="line">    movl    $0, 60(%esp)     #, a</span><br><span class="line">    movl    $0, 56(%esp)     #, b</span><br><span class="line">    movl    $0, 52(%esp)     #, c</span><br><span class="line">    movl    $0, 48(%esp)     #, d</span><br><span class="line">    movl    $0, 44(%esp)     #, e</span><br><span class="line">    movl    $0, 40(%esp)     #, f</span><br><span class="line">    movl    40(%esp), %eax   # f, tmp89</span><br><span class="line">    movl    %eax, 20(%esp)   # tmp89,</span><br><span class="line">    movl    44(%esp), %eax   # e, tmp90</span><br><span class="line">    movl    %eax, 16(%esp)   # tmp90,</span><br><span class="line">    movl    48(%esp), %eax   # d, tmp91</span><br><span class="line">    movl    %eax, 12(%esp)   # tmp91,</span><br><span class="line">    movl    52(%esp), %eax   # c, tmp92</span><br><span class="line">    movl    %eax, 8(%esp)    # tmp92,</span><br><span class="line">    movl    56(%esp), %eax   # b, tmp93</span><br><span class="line">    movl    %eax, 4(%esp)    # tmp93,</span><br><span class="line">    movl    60(%esp), %eax   # a, tmp94</span><br><span class="line">    movl    %eax, (%esp)     # tmp94,</span><br><span class="line">    call    __Z4funciiiiii   #</span><br><span class="line">    movl    %eax, 36(%esp)   # tmp95, k</span><br><span class="line">    movl    $0, %eax     #, _10</span><br><span class="line">    leave</span><br><span class="line">    .cfi_restore 5</span><br><span class="line">    .cfi_def_cfa 4, 4</span><br><span class="line">    ret</span><br><span class="line">    .cfi_endproc</span><br></pre></td></tr></table></figure>
+
+<p>我对汇编不太了解，不过大概能看得出，这个函数在调用的时候，首先按顺序把形参一个一个压入栈。然后再一个一个出栈。这样的话，就产生很多不必要的入栈出栈操作。</p>
+<p>我们使用指令g++ -O3 -fomit-frame-pointer -fverbose-asm -S main.cpp -o main.S来生成一个优化版本的代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">_main:</span><br><span class="line">LFB1490:</span><br><span class="line">    .cfi_startproc</span><br><span class="line">    pushl   %ebp     #</span><br><span class="line">    .cfi_def_cfa_offset 8</span><br><span class="line">    .cfi_offset 5, -8</span><br><span class="line">    movl    %esp, %ebp   #,</span><br><span class="line">    .cfi_def_cfa_register 5</span><br><span class="line">    andl    $-16, %esp   #,</span><br><span class="line">    call    ___main  #</span><br><span class="line">    xorl    %eax, %eax   #</span><br><span class="line">    leave</span><br><span class="line">    .cfi_restore 5</span><br><span class="line">    .cfi_def_cfa 4, 4</span><br><span class="line">    ret</span><br><span class="line">    .cfi_endproc</span><br></pre></td></tr></table></figure>
+
+<p>为什么要把线性编程做成一个单独的指令呢？因为：</p>
+<p><img src="https://pic4.zhimg.com/v2-17b44d6ae69f1316e122a51e4bbce687_b.jpg"></p>
+<p>怎么确定a[b]的地址呢？在汇编里是不能通过a+b来查找的，因为a是一个int指针类型，在汇编里直接加它会变成char类型的相加。因此可以用这个线性指令去做。<img src="https://pic1.zhimg.com/v2-afcc0474761095737097a6eb1ef16474_b.jpg"></p>
+<p>划红线的语句是什么作用呢？我们的int型变量是32位的，而指针和地址都是64位的，所以这条指令把32位的转为64位。如果我们使用size_t来作数组的索引，那么就可以避免上面那条语句，因为size_t能够保证在64位系统上就是int64.</p>
+<p><strong>编译器优化：代数化简</strong></p>
+<p><img src="https://pic4.zhimg.com/v2-7d09208b4880a26fa5a7a10952ef3573_b.jpg"></p>
+<p>编译器会识别出两个式子会抵消，所以会直接优化成return a。</p>
+<p><img src="https://pic3.zhimg.com/v2-72e7f188a13bbcaca2c8bde30efa3c06_b.jpg">  </p>
+<p>这种情况编译器会直接优化成5050。</p>
+<p>但如果代码比较复杂，比如像vector这种在堆上分配内存的代码就不会被优化掉：</p>
+<p><img src="https://pic1.zhimg.com/v2-5f2b018aa4f93bf8c2074e5ecafbe828_b.jpg"></p>
+<p>内存分配在栈上的容器更容易进行优化。代码过于复杂，语句数量过多时，编译器会放弃自动优化。这时候可以用constexpr强迫编译器优化。但constexpr无法使用vector等容器。</p>
+<p><strong>内联函数</strong></p>
+<p>函数可以分为外部函数和内部函数。像声明和实现分离的这种就是外部函数，这样的函数编译器就没法进行优化。</p>
+<p>声明和定义写在一起的叫做内部函数，编译器会自动决定是否去内联。</p>
+<p>static关键字：表示该变量&#x2F;函数为局部可见，不会暴露给其他文件。</p>
+<p><strong>指针别名问题</strong></p>
+<p><img src="https://pic2.zhimg.com/v2-b97d299f62627e41503a1e49e60891a5_b.jpg"></p>
+<p>上面这个代码*c被赋值两遍，第一条语句应该会被优化掉。但是并没有，两条语句都执行了。这是因为指针别名的问题，编译器并不确定c和b是不是指向同一地址，第一条有和没有结果是不一样的，所以它不敢把第一条语句优化掉。解决方法是，使用__restrict关键字告诉编译器不存在指针别名：</p>
+<p><img src="https://pic2.zhimg.com/v2-9a74ec21ab75e4e3f5050510fc04a9b1_b.jpg"></p>
+<p>不过对于const指针就没必要加了，因为const指针不允许修改内存。</p>
+<p>禁止优化：volatile</p>
+<p><img src="https://pic3.zhimg.com/v2-3cd0879ef16059fa4b7a13bc589337c2_b.jpg"></p>
+<p>上面这个函数会把代码优化为：首先把42写入a内存中，然后直接把42返回。但在多线程里，可能返回的时候a中的值被其他线程修改了，那么返回值就不正确了。可以通过volatile关键字告诉编译器不要去优化它。</p>
+<p>这些关键字的区别：</p>
+<p><img src="https://pic2.zhimg.com/v2-597eb60596f987e620da6234fc62d71d_b.jpg"></p>
+<p><strong>数组清零：自动调用标准库的memset</strong></p>
+<p><img src="https://pic3.zhimg.com/v2-80203b95447844f6786d770ebb1e1e5e_b.jpg"></p>
+<p>编译器会自动调用标准库的memset。因此不必手写memset&#x2F;memcopy之类的东西。</p>
+<p><strong>编译器优化：合并写入</strong></p>
+<p><img src="https://pic2.zhimg.com/v2-acc751a177391592b24796b9c7e8e085_b.jpg"></p>
+<p>上面代码中两个内存是连续的，所以编译器会把两个int32的写入合并为一个int64的写入。但如果两个元素不连续，那就不能合并。</p>
+<p><strong>浮点作为参数和返回：xmm系列寄存器</strong></p>
+<p><img src="https://pic2.zhimg.com/v2-a870943b37b125030020301afb6c40a9_b.jpg"></p>
+<p>我在我的g++编译器上输出了上面的汇编代码，<u>并没有看到里面有用到xmm寄存器，不知道什么原因</u>。然后我又用了VS2019，通过调试模式下的反汇编看到了xmm寄存器。</p>
+<p><img src="https://pic2.zhimg.com/v2-696939f13bda687de35d358820d6b1e9_b.jpg"></p>
+<p><u>不知道什么原因，是因为MinGW32的原因吗？先挖个坑吧。</u></p>
+<p><img src="https://pic2.zhimg.com/v2-c7694e93463f2feb4348f2301b2f234d_b.jpg"></p>
+<p><strong>xmm寄存器</strong></p>
+<p><img src="https://pic3.zhimg.com/v2-17d23235885278ec61971f0fa17a0c1e_b.jpg"></p>
+<p><strong>addss</strong></p>
+<p><img src="https://pic3.zhimg.com/v2-2ddd01dc3ceef4f098b0a67e283a00f6_b.jpg"></p>
+<p>如果汇编里有大量ss结尾的指令，说明矢量化失败。</p>
+<p><strong>SIMD</strong></p>
+<p><img src="https://pic4.zhimg.com/v2-08ed7a374e634453269157ea13237ef7_b.jpg"></p>
+<p><img src="https://pic1.zhimg.com/v2-718bb43f9512952ccf7dc76baf727c30_b.jpg"></p>
+<p>单指令多数据（SIMD）是更宽的合并写入。那可以再宽一点吗？比如用上ymm寄存器，把8个int32和并成一个_m256?</p>
+<p><img src="https://pic1.zhimg.com/v2-f1964811e188bb5c906e56ae40a322d4_b.jpg"></p>
+<p>这样是不行的。因为编译器不能保证电脑支持AVX指令，所以上面这个代码会被优化成两个_m128.可以通过gcc -march&#x3D;native -O3 让编译器去判断是否支持AVX指令集。</p>
+<p>数组填充：</p>
+<p><img src="https://pic3.zhimg.com/v2-a647f2bad0cd0037b3e24c53bc4863a6_b.jpg"></p>
+<p>编译器会用SIMD优化为这样：</p>
+<p><img src="https://pic4.zhimg.com/v2-fd80046f9cf467316a1bbead4800b32b_b.jpg"></p>
+<p>缺点就是数组的大小必须为4的整数倍。如果不是4的整数倍怎么办？通过边界特判法。上面的代码中如果n&#x3D;1023，那么编译器会先把前1020个数据SIMD写入，剩余三个用普通的方法。但是边界特判法也会生成一些复杂的语句，我们可以通过这样的方式告诉编译器，n总是4的倍数，让编译器不用边界特判法：</p>
+<p><img src="https://pic4.zhimg.com/v2-297f5d24a5640b32908095d13967735f_b.jpg"></p>
+<p><strong>循环</strong></p>
+<p>循环中的矢量化：</p>
+<p><img src="https://pic4.zhimg.com/v2-f961668f48bcada5b209af16dcdb78af_b.jpg"></p>
+<p>可以使用__restirct关键字解决。</p>
+<p>除了使用__restrict关键字，还可用openMP来启用SIMD优化：</p>
+<p><img src="https://pic3.zhimg.com/v2-027f181130f56428c8fef9ab78c83236_b.jpg"></p>
+<p><strong>循环中的if语句：</strong></p>
+<p>具有if的循环体很难进行SIMD矢量化，对于这样的情况：</p>
+<p><img src="https://pic1.zhimg.com/v2-ecb04b622b7a3701c1ea51c1eee352fc_b.jpg"></p>
+<p>优化思路：</p>
+<p><img src="https://pic4.zhimg.com/v2-d4ed12dd927448622d8b70da3181881f_b.jpg"></p>
+<p>调用不在一个文件的函数，会导致SIMD优化失败。</p>
+<p>这种情况下，编译器看不到other内部的东西，因此没法矢量化。 解决方案就是放到同一个文件里。</p>
+<p>随机访问&#x2F;跳跃访问也会矢量化失败：</p>
+<p><img src="https://pic1.zhimg.com/v2-3e30f49afbb1c646f3705a855077a58c_b.jpg"></p>
+<p><img src="https://pic1.zhimg.com/v2-71a22aab411684482912b2f450a5fcc8_b.jpg"></p>
+<p><strong>循环展开</strong></p>
+<p><img src="https://pic4.zhimg.com/v2-908cd8a2c84d679a8c06b562558aff17_b.jpg"></p>
+<p>GCC编译器里可以用#pragma GCC unroll 4，表示把循环体展开为4个：</p>
+<p><img src="https://pic3.zhimg.com/v2-509534847ce9bbbaee4c776ae6ad9d3a_b.jpg"></p>
+<p><img src="https://pic2.zhimg.com/v2-3a02f1c736e917bf98c720bd1f9ee56d_b.jpg"></p>
+<p><u>这里有个问题，这样展开后编译器会做SIMD优化吗，挖个坑，一会测试一下</u></p>
+<p><strong>结构体</strong></p>
+<p><img src="https://pic1.zhimg.com/v2-5f9fe9a7dcafd045f8491dca902b8d70_b.jpg"></p>
+<p>这个结构体可以把x，y对齐到8字节。是可以被矢量化的。但是如果是一个三维的矢量类：</p>
+<p><img src="https://pic2.zhimg.com/v2-01b5bf8718bb022fd2bbd4406ee4e111_b.jpg"></p>
+<p>就是对齐到12字节，无法SIMD矢量化。我们可以再增加一个成员凑齐16字节：</p>
+<p><img src="https://pic1.zhimg.com/v2-a4136d4bd89ac2ffdd84da648ca799e0_b.jpg"></p>
+<p>在C++11z中，我们可以直接通过alignas语法达到要对齐的字节数：</p>
+<p><img src="https://pic1.zhimg.com/v2-d7938da3d827d23b0f9f3c82e84c925c_b.jpg"></p>
+<p><strong>结构体的内存布局</strong></p>
+<p><img src="https://pic1.zhimg.com/v2-1a8a745a5dfa93f9d5bc9a137b5976c4_b.jpg"></p>
+<p><img src="https://pic3.zhimg.com/v2-6729f9c487c92c6053da5e279569fbc6_b.jpg"></p>
+<p><img src="https://pic3.zhimg.com/v2-df7aeb71e477d02d796fbb77b7743eae_b.jpg"></p>
+<p><img src="https://pic4.zhimg.com/v2-4a3218a21ddabd9595e1658c937d7113_b.jpg"></p>
+<p><img src="https://pic4.zhimg.com/v2-81acf2aa38f6a416ae02cc999f281c3b_b.jpg"></p>
+<p>对于vector容器，也有指针别名的问题：</p>
+<p><img src="https://pic4.zhimg.com/v2-fdca2fca040acb8f90199307e08dc927_b.jpg"></p>
+<p><img src="https://pic1.zhimg.com/v2-1d0fba0997708b6a295b27581618a394_b.jpg"></p>
+<p>编译器不能保证a和b是不是同一个vector。</p>
+<p>用restrict没用，因为restrict只是说容器本身是restrict的，而不是vector指针是restrict的。解决办法：</p>
+<p><img src="https://pic2.zhimg.com/v2-04538082f9af4caa80a6174ecc888fd9_b.jpg"></p>
+<p>vector也能实现SOA：</p>
+<p><img src="https://pic4.zhimg.com/v2-7d65a6188f2560f052fb2a95e2877fa7_b.jpg"></p>
+<p><strong>数学运算</strong></p>
+<p>运算中乘法要比除法高效。但是这样的编译器是没法优化成乘法的：</p>
+<p><img src="https://pic3.zhimg.com/v2-1a9677d1bea489476fd1d944ca8150e2_b.jpg"></p>
+<p>因为编译器害怕除数为0的情况。解决方法：改为*&#x3D;</p>
+<p>或者，使用编译器选项：</p>
+<p><img src="https://pic4.zhimg.com/v2-080c1654cdedf83d55fea7b5be04cc6b_b.jpg"></p>
+<p>数学函数</p>
+<p><img src="https://pic4.zhimg.com/v2-94624651883468c62a5758cc82d1f0c3_b.jpg"></p>
+<p>如果开启了ffast math，</p>
+<p><img src="https://pic4.zhimg.com/v2-fa9221d0970d0b09f6f0d83211707603_b.jpg"></p>
+<p>这个就可以实现矢量化。不开启的话编译器害怕会对负数开方。</p>
+<p><strong>优化手法总结</strong></p>
+<p><img src="https://pic3.zhimg.com/v2-e4eb32e7f6798045f660ea71d0eea3ca_b.jpg"></p>
+<p>个人总结：感觉积累了很多琐碎的知识，但还是得多去实践才行。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/21/tst/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -361,7 +626,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">14</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
