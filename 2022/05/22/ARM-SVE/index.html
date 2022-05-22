@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="什么是SVE NEON指令集是ARM64架构的单指令多数据流（SIMD）的标准实现。SVE（可扩展矢量指令Scalable Vector Extension）是针对高性能计算（HPC）和机器学习等领域开发的一套全新的矢量指令集，它是下一代SIMD指令集实现，而不是NEON指令集的简单扩展。SVE指令集中有很多概念与NEON指令集类似，例如矢量、通道、数据元素等。SVE指令集也提出了一个全新的概念：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ARM_SVE">
+<meta property="og:url" content="http://example.com/2022/05/22/ARM-SVE/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="什么是SVE NEON指令集是ARM64架构的单指令多数据流（SIMD）的标准实现。SVE（可扩展矢量指令Scalable Vector Extension）是针对高性能计算（HPC）和机器学习等领域开发的一套全新的矢量指令集，它是下一代SIMD指令集实现，而不是NEON指令集的简单扩展。SVE指令集中有很多概念与NEON指令集类似，例如矢量、通道、数据元素等。SVE指令集也提出了一个全新的概念：">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-2979abcd52be45331a79710caa709a01_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-40e7f62f325f084f735a68a4e5722e9d_b.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-d4e5e56dcd6e9178766eb3803e1f94fa_b.jpg">
+<meta property="og:image" content="https://pic4.zhimg.com/v2-c8ccad84d897385155bf4805ff9ede13_b.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-c8f28e6570140c4cab60cbef65f1efa0_b.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-da1c7def0db5808ffb06735d364cccb1_b.jpg">
+<meta property="article:published_time" content="2022-05-22T13:27:08.000Z">
+<meta property="article:modified_time" content="2022-05-22T13:28:36.974Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic2.zhimg.com/v2-2979abcd52be45331a79710caa709a01_b.jpg">
+
+<link rel="canonical" href="http://example.com/2022/05/22/ARM-SVE/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>ARM_SVE | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/22/ARM-SVE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ARM_SVE
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-22 21:27:08 / Modified: 21:28:36" itemprop="dateCreated datePublished" datetime="2022-05-22T21:27:08+08:00">2022-05-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><strong>什么是SVE</strong></p>
+<p>NEON<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%8C%87%E4%BB%A4%E9%9B%86&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">指令集</a>是ARM64架构的单指令多数据流（SIMD）的标准实现。SVE（可扩展矢量指令Scalable Vector Extension）是针对高性能计算（HPC）和机器学习等领域开发的一套全新的矢量指令集，它是下一代SIMD指令集实现，而不是NEON指令集的简单扩展。SVE指令集中有很多概念与NEON指令集类似，例如矢量、通道、数据元素等。SVE指令集也提出了一个全新的概念：<strong>可变矢量长度编程模型</strong>(VectorLength Agnostic，VLA)。</p>
+<p>传统的SIMD指令集采用固定大小的向量寄存器，例如NEON指令集采用固定的128位长度的矢量寄存器。而支持VLA编程模型的SVE指令集则支持可变长度的矢量寄存器。这样允许芯片设计者根据负载和成本来选择一个合适的矢量长度。SVE指令集的矢量寄存器的长度最小支持128位，最大可以支持2048位，以128位为增量。SVE设计确保同一个应用程序可以在支持不同矢量长度的SVE指令机器上运行，而不需要重新编译代码，这是VLA编程模型的精髓。</p>
+<p>SVE指令集是在A64指令集的基础上新增的一组指令集，而SVE2是在ARMv9架构上发布的，它是SVE指令集的一个超集和扩充。</p>
+<p>SVE指令集包含了几百条指令，它们可以分成如下几大类。</p>
+<p>Ø 加载存储指令以及预取指令</p>
+<p>Ø 向量移动指令</p>
+<p>Ø 整数运算指令</p>
+<p>Ø 位操作指令</p>
+<p>Ø 浮点数运算指令</p>
+<p>Ø 预测操作指令</p>
+<p>Ø 数据元素操作指令</p>
+<p>SVE2指令集在SVE指令集的基础进一步扩充和完善，新增了部分指令和扩展。本节不对每条指令做详细的介绍，有兴趣的读者可以阅读ARMv9指令集文档：《<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=Arm+A64+Instruction+SetArchitecture%EF%BC%8CArmv9,+for+Armv9-A+architectureprofile&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">Arm A64 Instruction SetArchitecture，Armv9, for Armv9-A architectureprofile</a>》。</p>
+<p><strong>什么是矢量计算？</strong></p>
+<p>SIMD，全称Single Instruction Multiple Data，一条指令操作多个数据，提供小数据并行处理能力。ARM从ARMv7架构开始加入NEON指令集扩展，矢量化并行计算，用于图像处理、音视频处理、视频编解码等场景。</p>
+<p>SISD（Single Instruction Single Data）指的是单指令单数据。大多数ARM64指令是单指令单数据(SISD)。每条指令在单个数据源上执行其指定的操作，所以，处理多个数据项需要多个指令。例如，要执行4个加法操作，需要4条指令从4对寄存器进行加法运算。</p>
+<p>ADD w0, w0, w5</p>
+<p>ADD w1, w1, w6</p>
+<p>ADD w2, w2, w7</p>
+<p>ADD w3, w3, w8</p>
+<p>如果数据元素比较小，例如当将8位值相加时，需要将每个8位值加载到一个单独的64位寄存器中。由于处理器、寄存器和数据路径都是为64位计算而设计的，所以在小数据大小上执行大量单独的操作不能有效地使用机器资源。</p>
+<p>SIMD指的是单指令多数据流，它对多个数据元素同时执行相同的操作。这些数据元素被打包成一个更大的<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E5%AF%84%E5%AD%98%E5%99%A8&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">寄存器</a>中的独立通道（Lanes）。例如，ADD指令将32位数据元素加在一起。这些值被打包到两对128位寄存器（分别是V8和V9）中的单独通道中。然后将第一源寄存器中的每个通道添加到第二源寄存器中的相应通道，然后将其存储在目标寄存器（V10）中的同一通道中。</p>
+<blockquote>
+<p>ADD V0.4S, V1.4S, V2.4S</p>
+</blockquote>
+<p>如图1所示，ADD指令会并行做4个加法运算，它们分别位于处理器内部的4个计算通道并且是相互独立的，任何一个通道发生了溢出或者进位都不会影响其他通道。</p>
+<blockquote>
+<p>V0.4S[0] &#x3D; V1.4S[0]+ V2.4S[0]<br>V0.4S[1] &#x3D; V1.4S[1]+ V2.4S[1]<br>V0.4S[2] &#x3D; V1.4S[2]+ V2.4S[2]<br>V0.4S[3]&#x3D; V1.4S[3] + V2.4S[3]</p>
+</blockquote>
+<p><img src="https://pic2.zhimg.com/v2-2979abcd52be45331a79710caa709a01_b.jpg"></p>
+<p>在图1中，一个128位的矢量寄存器Vn可以同时存储4个32位的数据Sn，另外它还可以存储2个64位数据Dn、8个16位数据Hn或者16个8位数据Bn。</p>
+<p>SIMD非常适合图像处理场景。图像的数据常用的数据类型是RGB565, RGBA8888,YUV422等格式，这些格式的数据特点是一个像素点的一个分量（A、R、G以及B分量）使用8位数据表示。如果使用传统的处理器做计算，虽然处理器的寄存器是32位或是64位的，处理这些数据确只能使用寄存器的低８位，有点浪费。如果把64位寄存器拆成8个8位数据通道就能同时完成8个操作，计算效率提升了8倍。</p>
+<p>总之，SISD和SIMD的区别如图2所示。</p>
+<p><img src="https://pic2.zhimg.com/v2-40e7f62f325f084f735a68a4e5722e9d_b.jpg"></p>
+<p><strong>矢量与通道</strong></p>
+<p>在SIMD指令中常常使用矢量数据格式（Vectorformats）。矢量被划分为多个通道（lanes），每个通道包含一个<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E7%9F%A2%E9%87%8F%E5%85%83%E7%B4%A0&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">矢量元素</a>（vector elements）。如图3所示，一个Vn矢量寄存器可以分成8个16位数据，如通道0、通道1等。</p>
+<p><img src="https://pic3.zhimg.com/v2-d4e5e56dcd6e9178766eb3803e1f94fa_b.jpg"></p>
+<p>通道可以由多种不同的数据类型组成，比如128位的数据类型用Vn来表示，64位的数据类型用Dn来表示，32位的数据类型用Sn来表示，16位的数据类型用Hn来表示，8位的数据类型用Bn来表示，如图4所示。</p>
+<p><img src="https://pic4.zhimg.com/v2-c8ccad84d897385155bf4805ff9ede13_b.jpg"></p>
+<p>在矢量指令集（NEON&#x2F;SVE)中，指令通常可以分成两大类，一类是矢量（vector）运算指令，另一类是标量（scalar）运算指令。矢量运算指的是对矢量寄存器中所有通道的数据都同时进行运算，而标量运算指的是只对矢量寄存器中某个通道的数据进行运算。</p>
+<p><strong>SVE寄存器组</strong></p>
+<p>SVE指令集提供了一组全新的寄存器。</p>
+<p>Ø 32个全新的可变长矢量寄存器Z0~ Z31。</p>
+<p>Ø 16个预测寄存器（predicateregister）P0 ~ P15。</p>
+<p>Ø 首次错误预测寄存器（First Fault predicateRegister，FFR）</p>
+<p>Ø SVE控制寄存器ZCR_Elx</p>
+<p>（1） 可变长矢量寄存器Z</p>
+<p>Z寄存器是数据寄存器，长度是可变长的。它的长度是128的倍数，最高可达2048位。Z寄存器中的数据可以用来存储为8位、16位、32位、64位或128位数据元素，如图5所示。每个Z寄存器的低128位与对应的NEON寄存器复用。</p>
+<p><img src="https://pic1.zhimg.com/v2-c8f28e6570140c4cab60cbef65f1efa0_b.jpg"></p>
+<p>（2） 预测寄存器P</p>
+<p>P寄存器为Z寄存器中的每个字节保留一个位，也就是说，P寄存器总是Z寄存器的1&#x2F;8大小。预测指令（Predicatedinstruction）使用P寄存器来确定要处理哪些向量元素（通道数据）。P寄存器中的每个比特位指定Z寄存器中相应的字节是处于活跃状态还是非活跃状态。  </p>
+<p>当数据元素为8位宽（Bn）时，P寄存器可以使用1个比特位来表示其活跃状态，这个比特位为1表示活跃，为0表示不活跃。依次类推，当数据元素为128位宽（Vn）时，P寄存器预留了8个比特位来表示Z寄存器中对应的数据元素的活跃状态，不过只使用了最低1位即可表示其活跃状态，其他比特位保留。</p>
+<p>假设矢量寄存器的长度为256位，矢量寄存器分成了8个通道，每个通道存储32位宽的数据。如果在SVE指令中想同时操作这8个通道的数据，那么需要使用一个P寄存器来表示这8个数据通道的状态。如图6所示，Pn寄存器也分成8个组，每个组由4个比特位组成，每个组只使用最低的比特位来表示Zn寄存器中对应的数据通道（32位宽）的活跃状态。例如，Pn寄存器的Bit[3:0]表示Zn寄存器的通道0，Pn寄存器的Bit[7:4]表示Zn寄存器的通道1，依次类推。</p>
+<p><img src="https://pic2.zhimg.com/v2-da1c7def0db5808ffb06735d364cccb1_b.jpg"></p>
+<p>（3） FFR寄存器</p>
+<p>FFR寄存器的大小与格式和预测寄存器P相同。FFR寄存器用于第一异常预测加载指令（First Fault PredicteLoad Instruction），例如LDRFF指令。在使用第一异常预测加载指来加载矢量元素时，FFR寄存器会及时更新每个数据元素的加载状态，是成功还是失败</p>
+<p>（4） ECR_ELx寄存器</p>
+<p>系统软件可以通过ECR_ELx寄存器中的LEN字段来设置矢量寄存器的长度。不过，设置的长度不能超过硬件实现的长度。</p>
+<p><strong>SVE指令语法</strong></p>
+<p>SVE指令的语法与NEON指令有很大不同。SVE指令格式由操作代码、目标寄存器、P寄存器和输入操作符等组成。下面举几个例子来介绍。</p>
+<p>【例】</p>
+<p>下面是一条LD1D指令的格式。</p>
+<blockquote>
+<p>LD1D { <Zt>.D },<Pg>&#x2F;Z, [&lt;Xn|SP&gt;, <Xm>, LSL #3]</p>
+</blockquote>
+<p>其中：</p>
+<p>Ø Zt表示矢量寄存器，可以使用Z0~Z31。</p>
+<p>Ø D表示矢量寄存器中通道的数据类型。</p>
+<p>Ø Pg表示预测操作数（predicateoperand），可以使用P0~P15。</p>
+<p>Ø <Pg>&#x2F;Z中的Z表示零预测（zeroingpredication）。</p>
+<p>Ø Xn&#x2F;SP：表示源操作数的基地址，Xn为通用寄存器，SP为栈指针寄存器。</p>
+<p>Ø Xm：表示第二个源操作数寄存器。</p>
+<p>【例2】</p>
+<p>下面是一条ADD指令的格式。</p>
+<blockquote>
+<p>ADD <Zdn>.<T>,<Pg>&#x2F;M, <Zdn>.<T>, <Zm>.<T></p>
+</blockquote>
+<p>其中：</p>
+<p>Ø Zdn表示第一个源矢量寄存器或者目标矢量寄存器。</p>
+<p>Ø Pg表示预测寄存器，可以使用P0~P15。</p>
+<p>Ø <Pg>&#x2F;M中的M表示合并预测（mergingpredication）。</p>
+<p>Ø Zm表示第二个源矢量寄存器。</p>
+<p>Ø T表示矢量寄存器中通道的数据类型。</p>
+<p>转自 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/399686472">https://zhuanlan.zhihu.com/p/399686472</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/12/GFS/" rel="prev" title="GFS">
+      <i class="fa fa-chevron-left"></i> GFS
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">15</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

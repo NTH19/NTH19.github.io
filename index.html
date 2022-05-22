@@ -160,6 +160,148 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/22/ARM-SVE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/05/22/ARM-SVE/" class="post-title-link" itemprop="url">ARM_SVE</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-22 21:27:08 / Modified: 21:28:36" itemprop="dateCreated datePublished" datetime="2022-05-22T21:27:08+08:00">2022-05-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><strong>什么是SVE</strong></p>
+<p>NEON<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%8C%87%E4%BB%A4%E9%9B%86&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">指令集</a>是ARM64架构的单指令多数据流（SIMD）的标准实现。SVE（可扩展矢量指令Scalable Vector Extension）是针对高性能计算（HPC）和机器学习等领域开发的一套全新的矢量指令集，它是下一代SIMD指令集实现，而不是NEON指令集的简单扩展。SVE指令集中有很多概念与NEON指令集类似，例如矢量、通道、数据元素等。SVE指令集也提出了一个全新的概念：<strong>可变矢量长度编程模型</strong>(VectorLength Agnostic，VLA)。</p>
+<p>传统的SIMD指令集采用固定大小的向量寄存器，例如NEON指令集采用固定的128位长度的矢量寄存器。而支持VLA编程模型的SVE指令集则支持可变长度的矢量寄存器。这样允许芯片设计者根据负载和成本来选择一个合适的矢量长度。SVE指令集的矢量寄存器的长度最小支持128位，最大可以支持2048位，以128位为增量。SVE设计确保同一个应用程序可以在支持不同矢量长度的SVE指令机器上运行，而不需要重新编译代码，这是VLA编程模型的精髓。</p>
+<p>SVE指令集是在A64指令集的基础上新增的一组指令集，而SVE2是在ARMv9架构上发布的，它是SVE指令集的一个超集和扩充。</p>
+<p>SVE指令集包含了几百条指令，它们可以分成如下几大类。</p>
+<p>Ø 加载存储指令以及预取指令</p>
+<p>Ø 向量移动指令</p>
+<p>Ø 整数运算指令</p>
+<p>Ø 位操作指令</p>
+<p>Ø 浮点数运算指令</p>
+<p>Ø 预测操作指令</p>
+<p>Ø 数据元素操作指令</p>
+<p>SVE2指令集在SVE指令集的基础进一步扩充和完善，新增了部分指令和扩展。本节不对每条指令做详细的介绍，有兴趣的读者可以阅读ARMv9指令集文档：《<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=Arm+A64+Instruction+SetArchitecture%EF%BC%8CArmv9,+for+Armv9-A+architectureprofile&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">Arm A64 Instruction SetArchitecture，Armv9, for Armv9-A architectureprofile</a>》。</p>
+<p><strong>什么是矢量计算？</strong></p>
+<p>SIMD，全称Single Instruction Multiple Data，一条指令操作多个数据，提供小数据并行处理能力。ARM从ARMv7架构开始加入NEON指令集扩展，矢量化并行计算，用于图像处理、音视频处理、视频编解码等场景。</p>
+<p>SISD（Single Instruction Single Data）指的是单指令单数据。大多数ARM64指令是单指令单数据(SISD)。每条指令在单个数据源上执行其指定的操作，所以，处理多个数据项需要多个指令。例如，要执行4个加法操作，需要4条指令从4对寄存器进行加法运算。</p>
+<p>ADD w0, w0, w5</p>
+<p>ADD w1, w1, w6</p>
+<p>ADD w2, w2, w7</p>
+<p>ADD w3, w3, w8</p>
+<p>如果数据元素比较小，例如当将8位值相加时，需要将每个8位值加载到一个单独的64位寄存器中。由于处理器、寄存器和数据路径都是为64位计算而设计的，所以在小数据大小上执行大量单独的操作不能有效地使用机器资源。</p>
+<p>SIMD指的是单指令多数据流，它对多个数据元素同时执行相同的操作。这些数据元素被打包成一个更大的<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E5%AF%84%E5%AD%98%E5%99%A8&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">寄存器</a>中的独立通道（Lanes）。例如，ADD指令将32位数据元素加在一起。这些值被打包到两对128位寄存器（分别是V8和V9）中的单独通道中。然后将第一源寄存器中的每个通道添加到第二源寄存器中的相应通道，然后将其存储在目标寄存器（V10）中的同一通道中。</p>
+<blockquote>
+<p>ADD V0.4S, V1.4S, V2.4S</p>
+</blockquote>
+<p>如图1所示，ADD指令会并行做4个加法运算，它们分别位于处理器内部的4个计算通道并且是相互独立的，任何一个通道发生了溢出或者进位都不会影响其他通道。</p>
+<blockquote>
+<p>V0.4S[0] &#x3D; V1.4S[0]+ V2.4S[0]<br>V0.4S[1] &#x3D; V1.4S[1]+ V2.4S[1]<br>V0.4S[2] &#x3D; V1.4S[2]+ V2.4S[2]<br>V0.4S[3]&#x3D; V1.4S[3] + V2.4S[3]</p>
+</blockquote>
+<p><img src="https://pic2.zhimg.com/v2-2979abcd52be45331a79710caa709a01_b.jpg"></p>
+<p>在图1中，一个128位的矢量寄存器Vn可以同时存储4个32位的数据Sn，另外它还可以存储2个64位数据Dn、8个16位数据Hn或者16个8位数据Bn。</p>
+<p>SIMD非常适合图像处理场景。图像的数据常用的数据类型是RGB565, RGBA8888,YUV422等格式，这些格式的数据特点是一个像素点的一个分量（A、R、G以及B分量）使用8位数据表示。如果使用传统的处理器做计算，虽然处理器的寄存器是32位或是64位的，处理这些数据确只能使用寄存器的低８位，有点浪费。如果把64位寄存器拆成8个8位数据通道就能同时完成8个操作，计算效率提升了8倍。</p>
+<p>总之，SISD和SIMD的区别如图2所示。</p>
+<p><img src="https://pic2.zhimg.com/v2-40e7f62f325f084f735a68a4e5722e9d_b.jpg"></p>
+<p><strong>矢量与通道</strong></p>
+<p>在SIMD指令中常常使用矢量数据格式（Vectorformats）。矢量被划分为多个通道（lanes），每个通道包含一个<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E7%9F%A2%E9%87%8F%E5%85%83%E7%B4%A0&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22399686472%22%7D">矢量元素</a>（vector elements）。如图3所示，一个Vn矢量寄存器可以分成8个16位数据，如通道0、通道1等。</p>
+<p><img src="https://pic3.zhimg.com/v2-d4e5e56dcd6e9178766eb3803e1f94fa_b.jpg"></p>
+<p>通道可以由多种不同的数据类型组成，比如128位的数据类型用Vn来表示，64位的数据类型用Dn来表示，32位的数据类型用Sn来表示，16位的数据类型用Hn来表示，8位的数据类型用Bn来表示，如图4所示。</p>
+<p><img src="https://pic4.zhimg.com/v2-c8ccad84d897385155bf4805ff9ede13_b.jpg"></p>
+<p>在矢量指令集（NEON&#x2F;SVE)中，指令通常可以分成两大类，一类是矢量（vector）运算指令，另一类是标量（scalar）运算指令。矢量运算指的是对矢量寄存器中所有通道的数据都同时进行运算，而标量运算指的是只对矢量寄存器中某个通道的数据进行运算。</p>
+<p><strong>SVE寄存器组</strong></p>
+<p>SVE指令集提供了一组全新的寄存器。</p>
+<p>Ø 32个全新的可变长矢量寄存器Z0~ Z31。</p>
+<p>Ø 16个预测寄存器（predicateregister）P0 ~ P15。</p>
+<p>Ø 首次错误预测寄存器（First Fault predicateRegister，FFR）</p>
+<p>Ø SVE控制寄存器ZCR_Elx</p>
+<p>（1） 可变长矢量寄存器Z</p>
+<p>Z寄存器是数据寄存器，长度是可变长的。它的长度是128的倍数，最高可达2048位。Z寄存器中的数据可以用来存储为8位、16位、32位、64位或128位数据元素，如图5所示。每个Z寄存器的低128位与对应的NEON寄存器复用。</p>
+<p><img src="https://pic1.zhimg.com/v2-c8f28e6570140c4cab60cbef65f1efa0_b.jpg"></p>
+<p>（2） 预测寄存器P</p>
+<p>P寄存器为Z寄存器中的每个字节保留一个位，也就是说，P寄存器总是Z寄存器的1&#x2F;8大小。预测指令（Predicatedinstruction）使用P寄存器来确定要处理哪些向量元素（通道数据）。P寄存器中的每个比特位指定Z寄存器中相应的字节是处于活跃状态还是非活跃状态。  </p>
+<p>当数据元素为8位宽（Bn）时，P寄存器可以使用1个比特位来表示其活跃状态，这个比特位为1表示活跃，为0表示不活跃。依次类推，当数据元素为128位宽（Vn）时，P寄存器预留了8个比特位来表示Z寄存器中对应的数据元素的活跃状态，不过只使用了最低1位即可表示其活跃状态，其他比特位保留。</p>
+<p>假设矢量寄存器的长度为256位，矢量寄存器分成了8个通道，每个通道存储32位宽的数据。如果在SVE指令中想同时操作这8个通道的数据，那么需要使用一个P寄存器来表示这8个数据通道的状态。如图6所示，Pn寄存器也分成8个组，每个组由4个比特位组成，每个组只使用最低的比特位来表示Zn寄存器中对应的数据通道（32位宽）的活跃状态。例如，Pn寄存器的Bit[3:0]表示Zn寄存器的通道0，Pn寄存器的Bit[7:4]表示Zn寄存器的通道1，依次类推。</p>
+<p><img src="https://pic2.zhimg.com/v2-da1c7def0db5808ffb06735d364cccb1_b.jpg"></p>
+<p>（3） FFR寄存器</p>
+<p>FFR寄存器的大小与格式和预测寄存器P相同。FFR寄存器用于第一异常预测加载指令（First Fault PredicteLoad Instruction），例如LDRFF指令。在使用第一异常预测加载指来加载矢量元素时，FFR寄存器会及时更新每个数据元素的加载状态，是成功还是失败</p>
+<p>（4） ECR_ELx寄存器</p>
+<p>系统软件可以通过ECR_ELx寄存器中的LEN字段来设置矢量寄存器的长度。不过，设置的长度不能超过硬件实现的长度。</p>
+<p><strong>SVE指令语法</strong></p>
+<p>SVE指令的语法与NEON指令有很大不同。SVE指令格式由操作代码、目标寄存器、P寄存器和输入操作符等组成。下面举几个例子来介绍。</p>
+<p>【例】</p>
+<p>下面是一条LD1D指令的格式。</p>
+<blockquote>
+<p>LD1D { <Zt>.D },<Pg>&#x2F;Z, [&lt;Xn|SP&gt;, <Xm>, LSL #3]</p>
+</blockquote>
+<p>其中：</p>
+<p>Ø Zt表示矢量寄存器，可以使用Z0~Z31。</p>
+<p>Ø D表示矢量寄存器中通道的数据类型。</p>
+<p>Ø Pg表示预测操作数（predicateoperand），可以使用P0~P15。</p>
+<p>Ø <Pg>&#x2F;Z中的Z表示零预测（zeroingpredication）。</p>
+<p>Ø Xn&#x2F;SP：表示源操作数的基地址，Xn为通用寄存器，SP为栈指针寄存器。</p>
+<p>Ø Xm：表示第二个源操作数寄存器。</p>
+<p>【例2】</p>
+<p>下面是一条ADD指令的格式。</p>
+<blockquote>
+<p>ADD <Zdn>.<T>,<Pg>&#x2F;M, <Zdn>.<T>, <Zm>.<T></p>
+</blockquote>
+<p>其中：</p>
+<p>Ø Zdn表示第一个源矢量寄存器或者目标矢量寄存器。</p>
+<p>Ø Pg表示预测寄存器，可以使用P0~P15。</p>
+<p>Ø <Pg>&#x2F;M中的M表示合并预测（mergingpredication）。</p>
+<p>Ø Zm表示第二个源矢量寄存器。</p>
+<p>Ø T表示矢量寄存器中通道的数据类型。</p>
+<p>转自 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/399686472">https://zhuanlan.zhihu.com/p/399686472</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/12/GFS/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2475,266 +2617,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/24/RedBlacktree/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
-      <meta itemprop="name" content="John Doe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/24/RedBlacktree/" class="post-title-link" itemprop="url">RedBlacktree</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2022-04-24 08:43:56 / Modified: 09:09:14" itemprop="dateCreated datePublished" datetime="2022-04-24T08:43:56+08:00">2022-04-24</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="为什么有了平衡树还需要红黑树？"><a href="#为什么有了平衡树还需要红黑树？" class="headerlink" title="为什么有了平衡树还需要红黑树？"></a>为什么有了平衡树还需要红黑树？</h3><p>虽然平衡树解决了二叉查找树退化为近似链表的缺点，能够把查找时间控制在 O(logn)，不过却不是最佳的，因为平衡树要求<strong>每个节点的左子树和右子树的高度差至多等于1</strong>，这个要求实在是太严了，导致每次进行插入&#x2F;删除节点的时候，几乎都会破坏平衡树的第二个规则，进而我们都需要通过<strong>左旋</strong>和<strong>右旋</strong>来进行调整，使之再次成为一颗符合要求的平衡树。</p>
-<p>显然，如果在那种插入、删除很频繁的场景中，平衡树需要频繁着进行调整，这会使平衡树的性能大打折扣，为了解决这个问题，于是有了<strong>红黑树</strong>，红黑树具有如下特点：</p>
-<p>1、具有二叉查找树的特点。</p>
-<p>2、根节点是黑色的；</p>
-<p>3、每个叶子节点都是黑色的空节点（NIL），也就是说，叶子节点不存数据。</p>
-<p>4、任何相邻的节点都不能同时为红色，也就是说，红色节点是被黑色节点隔开的。</p>
-<p>5、每个节点，从该节点到达其可达的叶子节点是所有路径，都包含相同数目的黑色节点。</p>
-<p>例如下面的图片（注意，图片中黑色的、空的叶子节点没有画出）（图片来自<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%9E%81%E5%AE%A2%E6%97%B6%E9%97%B4&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%2272505589%22%7D">极客时间</a>）</p>
-<p><img src="https://pic2.zhimg.com/v2-ddabd6f5d1a62d385d9c7143671b5c5d_b.jpg"></p>
-<p>正是由于红黑树的这种特点，使得它能够在最坏情况下，也能在 O(logn) 的时间复杂度查找到某个节点。至于为什么就能够保证时间复杂度为 O(logn)，我这里就不细讲了，后面的文章可能会讲。</p>
-<p>不过，与平衡树不同的是，红黑树在插入、删除等操作，<strong>不会像平衡树那样，频繁着破坏红黑树的规则，所以不需要频繁着调整</strong>，这也是我们为什么大多数情况下使用红黑树的原因。</p>
-<p>不过，如果你要说，单单在查找方面的效率的话，平衡树比红黑树快。</p>
-<p>所以，我们也可以说，<strong>红黑树是一种不大严格的平衡树</strong>。也可以说是一个折中发方案。</p>
-<p>如果我上面讲的，你都懂，都能够在面试中说出来，应该是足够的了。我当时就是这么回答的。</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>所以，最后的答案是，平衡树是为了解决二叉查找树退化为链表的情况，而红黑树是为了解决平衡树在插入、删除等操作需要频繁调整的情况。</p>
-<p>不过，红黑树还有挺多其他的知识点可以考，例如红黑树有哪些应用场景？向集合容器中 HashMap，TreeMap 等，内部结构就用到了红黑树了。还有构建一棵节点个数为 n 的红黑树，时间复杂度是多少？红黑树与哈希表在不同应该场景的选择？红黑树有哪些性质？红黑树各种操作的时间复杂度是多少？</p>
-<p>如果你把这些都弄懂了，应该就差不多可以的了，后面有时间的话，我给大家详细讲一下这些题，这里最好是要求理解，而不是死记硬背。</p>
-<p><img src="https://pic3.zhimg.com/v2-9d36e53141546001516390048876e7e6_b.jpg"></p>
-<p>1.结点是红色或黑色。</p>
-<p>2.根结点是黑色。</p>
-<p>3.每个叶子结点都是黑色的空结点（NIL结点）。</p>
-<p>4 每个红色结点的两个子结点都是黑色。(从每个叶子到根的所有路径上不能有两个连续的红色结点)</p>
-<p>5.从任一结点到其每个叶子的所有路径都包含相同数目的黑色结点。</p>
-<p>下图中这棵树，就是一颗典型的红黑树：</p>
-<p><img src="https://pic3.zhimg.com/v2-547662c1659066f06630de1e827082fa_b.jpg"></p>
-<p><img src="https://pic3.zhimg.com/v2-e4dd4ddd6b9eaefd6135a0782c4d1c0a_b.jpg"></p>
-<p><img src="https://pic3.zhimg.com/v2-e056a4ca45ae08d78f18f7d3f303b432_b.jpg"></p>
-<p><img src="https://pic1.zhimg.com/v2-27c856e6fa82be9349f9a1460bc51304_b.jpg"></p>
-<p>什么情况下会破坏红黑树的规则，什么情况下不会破坏规则呢？我们举两个简单的例子：</p>
-<p>1.向原红黑树插入值为<strong>14</strong>的新结点：</p>
-<p><img src="https://pic2.zhimg.com/v2-333eecc13e9396954bcf31e23d2611a9_b.jpg"></p>
-<p>由于父结点15是黑色结点，因此这种情况并不会破坏红黑树的规则，无需做任何调整。</p>
-<p>2.向原红黑树插入值为<strong>21</strong>的新结点：</p>
-<p><img src="https://pic1.zhimg.com/v2-ea137ceadfdbed94969aee9ee92dba00_b.jpg"></p>
-<p>由于父结点22是红色结点，因此这种情况打破了红黑树的规则4（每个红色结点的两个子结点都是黑色），必须进行调整，使之重新符合红黑树的规则。</p>
-<p><img src="https://pic3.zhimg.com/v2-38d31ca1ca2e620c565ef29b7e6771aa_b.jpg"></p>
-<p><img src="https://pic3.zhimg.com/v2-23307bb19b6931cc1dcb5e20c4fedb7e_b.jpg"></p>
-<p><strong>变色：</strong></p>
-<p>为了重新符合红黑树的规则，尝试把红色结点变为黑色，或者把黑色结点变为红色。</p>
-<p>下图所表示的是红黑树的一部分（子树），新插入的结点Y是红色结点，它的父亲结点X也是红色的，不符合规则4，因此我们可以把结点X从红色变成黑色：</p>
-<p><img src="https://pic3.zhimg.com/v2-13421853161b79eb115af957e59dd1e6_b.jpg"></p>
-<p>但是，仅仅把一个结点变色，会导致相关路径凭空多出一个黑色结点，这样就打破了规则5。因此，我们需要对其他结点做进一步的调整，后文会详细说明。</p>
-<p><img src="https://pic2.zhimg.com/v2-84636dd63f030b1f78dac95c1539eddd_b.jpg"></p>
-<p><img src="https://pic2.zhimg.com/v2-adc07af544e0f6db40ce5d243c87973d_b.jpg"></p>
-<p><img src="https://pic4.zhimg.com/v2-5bff41979d961b927601b2f9e28d5a4f_b.jpg"></p>
-<p><strong>局面1：</strong>新结点（A）位于树根，没有父结点。</p>
-<p><img src="https://pic4.zhimg.com/v2-f66844ec5a7a02b59c52da6db10dba03_b.png"></p>
-<p>(空心三角形代表结点下面的子树)</p>
-<p>这种局面，直接让新结点变色为黑色，规则2得到满足。同时，黑色的根结点使得每条路径上的黑色结点数目都增加了1，所以并没有打破规则5。  </p>
-<p><img src="https://pic3.zhimg.com/v2-d4552377f39208f5d54927b3c7a7a60a_b.jpg"></p>
-<p><strong>局面2：</strong>新结点（B）的父结点是黑色。</p>
-<p>这种局面，新插入的红色结点B并没有打破红黑树的规则，所以不需要做任何调整。</p>
-<p><img src="https://pic2.zhimg.com/v2-a64b4e366a4cd4c512a437bf87046f81_b.png"></p>
-<p><strong>局面3：</strong>新结点（D）的父结点和叔叔结点都是红色。</p>
-<p><img src="https://pic1.zhimg.com/v2-8075b7762a193d39e99a37d40e0fc958_b.jpg"></p>
-<p>这种局面，两个红色结点B和D连续，违反了规则4。因此我们先让结点B变为黑色：</p>
-<p><img src="https://pic3.zhimg.com/v2-479f2c21d8672cfa7a6aa4cfa92d3fde_b.jpg"></p>
-<p>这样一来，结点B所在路径凭空多了一个黑色结点，打破了规则5。因此我们让结点A变为红色：  </p>
-<p><img src="https://pic2.zhimg.com/v2-696268e05ce913cfe69cf72832e426c5_b.jpg"></p>
-<p>这时候，结点A和C又成为了连续的红色结点，我们再让结点C变为黑色：</p>
-<p><img src="https://pic1.zhimg.com/v2-99e257f356001376b49aa809c5230254_b.jpg"></p>
-<p>经过上面的调整，这一局部重新符合了红黑树的规则。  </p>
-<p><strong>局面4：</strong>新结点（D）的父结点是红色，叔叔结点是黑色或者没有叔叔，且新结点是父结点的右孩子，父结点（B）是祖父结点的左孩子。</p>
-<p><img src="https://pic2.zhimg.com/v2-fabee6a45b5d247a5f24e4a103cf2691_b.jpg"></p>
-<p>我们以结点B为轴，做一次左旋转，使得新结点D成为父结点，原来的父结点B成为D的左孩子：</p>
-<p><img src="https://pic3.zhimg.com/v2-43fb5fb0abc36595aef56e05d5bd922a_b.jpg"></p>
-<p>这样一来，进入了局面5。</p>
-<p><strong>局面5：</strong>新结点（D）的父结点是红色，叔叔结点是黑色或者没有叔叔，且新结点是父结点的左孩子，父结点（B）是祖父结点的左孩子。</p>
-<p><img src="https://pic2.zhimg.com/v2-9354fc094242408d7d691b03000101f5_b.jpg"></p>
-<p>我们以结点A为轴，做一次右旋转，使得结点B成为祖父结点，结点A成为结点B的右孩子：</p>
-<p><img src="https://pic1.zhimg.com/v2-04e30ebe8a4a0608dd2a91f762d1c020_b.jpg"></p>
-<p>接下来，我们让结点B变为黑色，结点A变为红色：  </p>
-<p><img src="https://pic2.zhimg.com/v2-3cd596451994d8871f55459bf3daf22d_b.jpg"></p>
-<p>经过上面的调整，这一局部重新符合了红黑树的规则。</p>
-<p>以上就是红黑树插入操作所涉及的5种局面。  </p>
-<p>或许有人会问，如果局面4和局面5当中的父结点B是祖父结点A的右孩子该怎么办呢？  </p>
-<p>很简单，如果局面4中的父结点B是右孩子，则成为了局面5的镜像，原本的右旋操作改为左旋；如果局面5中的父结点B是右孩子，则成为了局面4的镜像，原本的左旋操作改为右旋。</p>
-<p><img src="https://pic4.zhimg.com/v2-04d05b781d2eed30790a05da7b1e9327_b.jpg"></p>
-<p><img src="https://pic2.zhimg.com/v2-73696be33d6a6805821a2d737b47ff85_b.jpg"></p>
-<p>给定下面这颗红黑树，新插入的结点是21：</p>
-<p><img src="https://pic2.zhimg.com/v2-7d4d84ff508f4de8dc0297df3ccede81_b.jpg"></p>
-<p>显然，新结点21和它的父结点22是连续的红色结点，违背了规则4，我们应该如何调整呢？</p>
-<p>让我们回顾一下刚才讲的5种局面，当前的情况符合局面3：  </p>
-<p>“新结点的父结点和叔叔结点都是红色。”</p>
-<p>于是我们经过三次变色，22变为黑色，25变为红色，27变为黑色：  </p>
-<p><img src="https://pic2.zhimg.com/v2-b5b080699becf0f29d33309cdb769395_b.jpg"></p>
-<p>经过上面的调整，以结点25为根的子树符合了红黑树规则，但结点25和结点17成为了连续的红色结点，违背规则4。</p>
-<p>于是，我们把结点25看做一个新结点，正好符合局面5的镜像：  </p>
-<p>“新结点的父结点是红色，叔叔结点是黑色或者没有叔叔，且新结点是父结点的右孩子，父结点是祖父结点的右孩子”</p>
-<p>于是我们以根结点13为轴进行左旋转，使得结点17成为了新的根结点：  </p>
-<p><img src="https://pic2.zhimg.com/v2-1d8e51128fc1de30efa8bf1c24ca5ee5_b.jpg"></p>
-<p>接下来，让结点17变为黑色，结点13变为红色：  </p>
-<p><img src="https://pic4.zhimg.com/v2-b6f860ec72a501a4025abd376a64e44b_b.jpg"></p>
-<p>如此一来，我们的红黑树变得重新符合规则。</p>
-<p><img src="https://pic2.zhimg.com/v2-1b17e7419a02e1cc7c634d5c7f1264dd_b.jpg"></p>
-<p><img src="https://pic4.zhimg.com/v2-604fe8c3a4bfeafae868fa3059da9d93_b.jpg"></p>
-<p><img src="https://pic4.zhimg.com/v2-be766d1b9c068e1a0008f135a8c847e3_b.jpg"></p>
-<p><img src="https://pic3.zhimg.com/v2-a310e7264a44b5314887b8dcb6240206_b.jpg"></p>
-<p>红黑树的特性（规则）如下：</p>
-<p><strong>1.结点是红色或黑色。</strong></p>
-<p><strong>2.根结点是黑色。</strong></p>
-<p><strong>3.每个叶子结点都是黑色的空结点（NIL结点）。</strong></p>
-<p><strong>4.每个红色结点的两个子结点都是黑色。(从每个叶子到根的所有路径上不能有两个连续的红色结点)</strong></p>
-<p><strong>5.从任一结点到其每个叶子的所有路径都包含相同数目的黑色结点。</strong></p>
-<p>下面我们通过一个例子，来看一看删除红黑树的结点会对规则产生怎样的影响：</p>
-<p><img src="https://pic3.zhimg.com/v2-ca97545793eebc312238c90b4fffe4fa_b.jpg"></p>
-<p>上图的这颗红黑树，待删除的是黑色结点1，有一个右孩子。根据二叉查找树的删除流程，我们让右孩子结点6直接取代结点1：</p>
-<p><img src="https://pic4.zhimg.com/v2-233785493dc5975a87811117e6b73893_b.jpg"></p>
-<p>显然，这颗新的<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E4%BA%8C%E5%8F%89%E6%A0%91&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22143396578%22%7D">二叉树</a>打破了两个规则：</p>
-<p>规则4. 每个红色结点的两个子结点都是黑色。</p>
-<p>规则5. 从任一结点到其每个叶子的所有路径都包含相同数目的黑色结点。</p>
-<p><img src="https://pic1.zhimg.com/v2-6d4fe5242b09442a10796f9d80ebca44_b.jpg"></p>
-<p><img src="https://pic2.zhimg.com/v2-e700cf6fc2e34c8b457b65a7c0b7bd49_b.jpg"></p>
-<p><img src="https://pic4.zhimg.com/v2-1c322d2742fdb2f702489acdb06aaffb_b.jpg"></p>
-<p><strong>第一步：如果待删除结点有两个<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E9%9D%9E%E7%A9%BA&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22143396578%22%7D">非空</a>的孩子结点，转化成待删除结点只有一个孩子（或没有孩子）的情况。</strong></p>
-<p><img src="https://pic2.zhimg.com/v2-926784ab7102c02e4668b2a30fc7ede9_b.jpg"></p>
-<p>上面例子是一颗红黑树的局部，标数字的三角形代表任意形态的子树，假设结点8是待删除结点。  </p>
-<p>根据上文讲解的二叉查找树删除流程，由于结点8有两个孩子，我们选择仅大于8的结点10复制到8的位置，结点颜色变成待删除结点的颜色：</p>
-<p><img src="https://pic3.zhimg.com/v2-b5104e7cd62bfa6296dbabe1243097b6_b.jpg"></p>
-<p>接下来我们需要删除红色的结点10：</p>
-<p><img src="https://pic4.zhimg.com/v2-88b43693789a7d053923f1e7dbbc0b3b_b.jpg"></p>
-<p>红色结点10能成为仅大于8的结点，必定没有左孩子结点，所以问题转换成了待删除结点只有一个右孩子（或没有孩子）的情况。接下来我们进入第二步。</p>
-<p><strong>第二步：根据待删除结点和其唯一子结点的颜色，分情况处理。</strong></p>
-<p><strong>情况1</strong>，自身是红色，子结点是黑色：</p>
-<p><img src="https://pic1.zhimg.com/v2-1614b003a26bcf56a7e69a1df2c9adb4_b.jpg"></p>
-<p>这种情况最简单，按照二叉查找树的删除操作，删除结点1即可：  </p>
-<p><img src="https://pic4.zhimg.com/v2-c7dc7ff707b8c067be97368606abaeab_b.png"></p>
-<p><strong>情况2</strong>，自身是黑色，子结点是红色：</p>
-<p><img src="https://pic3.zhimg.com/v2-e34c3d9cc0558d2dc1fa413484b74072_b.jpg"></p>
-<p>这种情况也很简单，首先按照二叉查找树的删除操作，删除结点1：  </p>
-<p><img src="https://pic2.zhimg.com/v2-80dcb6d80da3fb57b2a27982b56682c1_b.png"></p>
-<p>此时，这条路径凭空减少了一个黑色结点，那么我们把结点2变成黑色即可：</p>
-<p><img src="https://pic4.zhimg.com/v2-c7dc7ff707b8c067be97368606abaeab_b.png"></p>
-<p><strong>情况3</strong>，自身是黑色，子结点也是黑色，或者子结点是空叶子结点：</p>
-<p><img src="https://pic4.zhimg.com/v2-a4be808b4c9c850db894d2cf7772c887_b.jpg"></p>
-<p>这种情况最复杂，涉及到很多变化。首先我们还是按照二叉查找树的删除操作，删除结点1：</p>
-<p><img src="https://pic4.zhimg.com/v2-c7dc7ff707b8c067be97368606abaeab_b.png"></p>
-<p>显然，这条路径上减少了一个黑色结点，而且结点2再怎么变色也解决不了。</p>
-<p>这时候我们进入第三步，专门解决父子双黑的情况。</p>
-<p><strong>第三步：遇到双黑结点，在子结点顶替父结点之后，分成6种子情况处理。</strong></p>
-<p><strong>子情况1</strong>，结点2是红黑树的根结点：</p>
-<p><img src="https://pic4.zhimg.com/v2-c02b03f4b8c73398a8de85c3764096a7_b.png"></p>
-<p>此时所有路径都减少了一个黑色结点，并未打破规则，不需要调整。  </p>
-<p><strong>子情况2</strong>，结点2的父亲、兄弟、侄子结点都是黑色：</p>
-<p><img src="https://pic2.zhimg.com/v2-be1d1f65fa580f61c810c62704697c39_b.jpg"></p>
-<p>此时，我们直接把结点2的兄弟结点B改为红色：  </p>
-<p><img src="https://pic3.zhimg.com/v2-40e7d096269e76096e57de6402bc354a_b.jpg"></p>
-<p>这样一来，原本结点2所在的路径少了一个黑色结点，现在结点B所在的路径也少了一个黑色结点，两边“扯平”了。  </p>
-<p>可是，结点A以下的每一条路径都减少了一个黑色结点，与结点A之外的其他路径又造成了新的不平衡啊？  </p>
-<p>没关系，我们让结点A扮演原先结点2的角色，进行递归操作，重新判断各种情况。</p>
-<p><strong>子情况3</strong>，结点2的兄弟结点是红色：</p>
-<p><img src="https://pic1.zhimg.com/v2-033d84205d89e5302254a8994bcb365c_b.jpg"></p>
-<p>首先以结点2的父结点A为轴，进行左旋：  </p>
-<p><img src="https://pic1.zhimg.com/v2-9eee6e1d97bfccfe4947cb4614ece410_b.jpg"></p>
-<p>然后结点A变成红色、结点B变成黑色：</p>
-<p><img src="https://pic4.zhimg.com/v2-20a5aa029642a5c2a46bf09ba43c8f0f_b.jpg"></p>
-<p>这样的意义是什么呢？结点2所在的路径仍然少一个黑色结点呀？  </p>
-<p>别急，这样的变化有可能转换成子情况4、5、6中的任意一种，在子情况4、5、6当中会进一步解决。</p>
-<p><strong>子情况4</strong>，结点2的父结点是红色，兄弟和侄子结点是黑色：</p>
-<p><img src="https://pic2.zhimg.com/v2-ef977478e5aaf267be6c3cc104cc66c5_b.jpg"></p>
-<p>这种情况，我们直接让结点2的父结点A变成黑色，兄弟结点B变成红色：</p>
-<p><img src="https://pic3.zhimg.com/v2-c06ec74b42a2fd3f4b08b3b70a0faf8a_b.jpg"></p>
-<p>这样一来，结点2的路径补充了黑色结点，而结点B的路径并没有减少黑色结点，重新符合了红黑树的规则。</p>
-<p><strong>子情况5</strong>，结点2的父结点随意，兄弟结点B是黑色右孩子，左侄子结点是红色，右侄子结点是黑色：</p>
-<p><img src="https://pic3.zhimg.com/v2-963e65b7ea25288abf513489fae463ee_b.jpg"></p>
-<p>这种情况下，首先以结点2的兄弟结点B为轴进行右旋：  </p>
-<p><img src="https://pic3.zhimg.com/v2-963888ded13c9f17a0f3d01b20764ba6_b.jpg"></p>
-<p>接下来结点B变为红色，结点C变为黑色：  </p>
-<p><img src="https://pic1.zhimg.com/v2-ab4ba6cc107b40df7893d4867c17ca30_b.jpg"></p>
-<p>这样的变化转换成了子情况6。</p>
-<p><strong>子情况6</strong>，结点2的父结点随意，兄弟结点B是黑色右孩子，右侄子结点是红色：</p>
-<p><img src="https://pic1.zhimg.com/v2-f516d37179a8bf431251a297524b54b0_b.jpg"></p>
-<p>首先以结点2的父结点A为轴左旋：</p>
-<p><img src="https://pic3.zhimg.com/v2-ba2b6c75b40388c1b2f8145fcf64eae2_b.jpg"></p>
-<p>接下来让结点A和结点B的颜色交换，并且结点D变为黑色：</p>
-<p><img src="https://pic2.zhimg.com/v2-83e7aca3746f1a20aa40ac486336470d_b.jpg"></p>
-<p>这样是否解决了问题呢？  </p>
-<p>经过结点2的路径由（随意+黑）变成了（随意+黑+黑），补充了一个黑色结点；</p>
-<p>经过结点D的路径由（随意+黑+红）变成了（随意+黑），黑色结点并没有减少。  </p>
-<p>所以，这时候重新符合了红黑树的规则。</p>
-<p>以上就是红黑树删除的全过程。</p>
-<p><img src="https://pic3.zhimg.com/v2-9aa0b85edccccff398f825dcc0668e56_b.jpg"></p>
-<p><img src="https://pic2.zhimg.com/v2-d3ec5d7eb6605a2de32423c0972d5285_b.jpg"></p>
-<p>给定下面这颗红黑树，待删除的是结点17：  </p>
-<p><img src="https://pic1.zhimg.com/v2-9b5c36f569a86cb3319cc5523ecb858c_b.jpg"></p>
-<p>第一步，由于结点17有两个孩子，子树当中仅大于17的结点是25，所以把结点25复制到17位置，保持黑色：</p>
-<p><img src="https://pic3.zhimg.com/v2-42299e881533cc1b20d45e65405a8a2a_b.jpg"></p>
-<p>接下来，我们需要删除原本的结点25：</p>
-<p><img src="https://pic3.zhimg.com/v2-96c40bc579a88d6f9a83cdff47504466_b.jpg"></p>
-<p>这个情况正好对应于第二步的情况三，即待删除结点是黑色，子结点是空叶子结点。</p>
-<p>于是我们删除框框中结点25，进入第三步：</p>
-<p><img src="https://pic1.zhimg.com/v2-bbe58a9c46a99d1f9c53b1f2899e1144_b.jpg"></p>
-<p>此时，框框中的结点虽然是空叶子结点，但仍然可以用于判断局面，当前局面符合子情况5的镜像：  </p>
-<p><img src="https://pic3.zhimg.com/v2-0e9f8efa42689686484938e80f43aa16_b.jpg"></p>
-<p><img src="https://pic3.zhimg.com/v2-72c3273b35dbff4454fb0f136fdd0672_b.jpg"></p>
-<p>于是我们通过左旋和变色，把<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E5%AD%90%E6%A0%91&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22143396578%22%7D">子树</a>转换成情况6的镜像：</p>
-<p><img src="https://pic1.zhimg.com/v2-f9afd50dedfe3c1dcbee581bf6617168_b.jpg"></p>
-<p>再经过右旋、变色，子树最终成为了下面的样子：</p>
-<p><img src="https://pic4.zhimg.com/v2-79e83783423bef94ff8a5cb9295dfaff_b.jpg"></p>
-<p><img src="https://pic1.zhimg.com/v2-0e46b9fdf23f1cd71a15afa951276e74_b.jpg"></p>
-<p>这样一来，整颗二叉树又重新符合了红黑树的规则。</p>
-<p>链接：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/72505589">https://zhuanlan.zhihu.com/p/72505589</a><br>来源：知乎</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2806,7 +2688,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-count">15</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
