@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本篇文章包含的内容有SIMD指令集简介以及简短的practice环节。 1.SIMD的历史与分类SIMD(Single Instruction Multiple Data)即单指令流多数据流，是一种采用一个控制器来控制多个处理器，同时对一组数据（又称“数据向量”）中的每一个分别执行相同的操作从而实现空间上的并行性的技术。简单来说就是一个指令能够同时处理多个数据。  标量运算与SIMD运算对比 如上">
+<meta property="og:type" content="article">
+<meta property="og:title" content="simd">
+<meta property="og:url" content="http://example.com/2022/05/27/simd/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="本篇文章包含的内容有SIMD指令集简介以及简短的practice环节。 1.SIMD的历史与分类SIMD(Single Instruction Multiple Data)即单指令流多数据流，是一种采用一个控制器来控制多个处理器，同时对一组数据（又称“数据向量”）中的每一个分别执行相同的操作从而实现空间上的并行性的技术。简单来说就是一个指令能够同时处理多个数据。  标量运算与SIMD运算对比 如上">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic4.zhimg.com/80/v2-0c56ad7326f03b91fbf48bd0ce5f03ef_720w.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/80/v2-de488d6f53fd2e3b94a8452810728069_720w.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-f13d5ee83a08caa528a1abc201603422_720w.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-42f84e676fb838f1e2aa2632d4ab0246_720w.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/80/v2-a1490b3ffd4a96a09ed17e342d279635_720w.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-6bf286fefece577d7625de67c902ba2a_720w.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/80/v2-a2699b789cd49bff9069668456e398b4_720w.jpg">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-58a14d57b5e41be7127e067017db5b6e_720w.png">
+<meta property="og:image" content="https://pic1.zhimg.com/80/v2-963fcdaf1c920934f4ed3a565d582ccc_720w.png">
+<meta property="og:image" content="https://pic2.zhimg.com/80/v2-dafbed01fcf5928b63861ca096d9c7a5_720w.png">
+<meta property="article:published_time" content="2022-05-27T13:45:47.000Z">
+<meta property="article:modified_time" content="2022-05-27T13:46:15.888Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic4.zhimg.com/80/v2-0c56ad7326f03b91fbf48bd0ce5f03ef_720w.jpg">
+
+<link rel="canonical" href="http://example.com/2022/05/27/simd/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>simd | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/27/simd/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          simd
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-27 21:45:47 / Modified: 21:46:15" itemprop="dateCreated datePublished" datetime="2022-05-27T21:45:47+08:00">2022-05-27</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本篇文章包含的内容有SIMD指令集简介以及简短的practice环节。</p>
+<h2 id="1-SIMD的历史与分类"><a href="#1-SIMD的历史与分类" class="headerlink" title="1.SIMD的历史与分类"></a><strong>1.SIMD的历史与分类</strong></h2><p>SIMD(<strong>Single Instruction Multiple Data</strong>)即单指令流多数据流，是一种采用一个控制器来控制多个处理器，同时对一组数据（又称“数据向量”）中的每一个分别执行相同的操作从而实现空间上的并行性的技术。简单来说就是一个指令能够同时处理多个数据。</p>
+<p><img src="https://pic4.zhimg.com/80/v2-0c56ad7326f03b91fbf48bd0ce5f03ef_720w.jpg"></p>
+<p>标量运算与SIMD运算对比</p>
+<p>如上图所示，使用标量运算一次只能对一对数据执行乘法操作，而采用SIMD乘法指令，则一次可以对四对数据同时执行乘法操作。</p>
+<p>SIMD于20世纪70年代首次引用于ILLIAC IV大规模并行计算机上。而大规模应用到消费级计算机则是在20实际90年代末。</p>
+<p>1996年Intel推出了X86的MMX(MultiMedia eXtension)指令集扩展，MMX定义了8个寄存器，称为MM0到MM7，以及对这些寄存器进行操作的指令。每个寄存器为64位宽，可用于以“压缩”格式保存64位整数或多个较小整数，然后可以将单个指令一次应用于两个32位整数，四个16位整数或8个8位整数。</p>
+<p>intel在1999年又推出了全面覆盖MMX的SSE(<strong>Streaming SIMD Extensions， 流式SIMD扩展</strong>)指令集，并将其应用到Pentium III系列处理器上，SSE添加了八个新的128位寄存器(XMM0至XMM7)，而后来的X86-64扩展又在原来的基础上添加了8个寄存器(XMM8至XMM15)。SSE支持单个寄存器存储4个32位单精度浮点数，之后的SSE2则支持单个寄存器存储2个64位双精度浮点数，2个64位整数或4个32位整数或8个16位短整形。SSE2之后还有SSE3，SSE4以及AVX，AVX2等扩展指令集。</p>
+<p>AVX引入了16个256位寄存器(YMM0至YMM15)，AVX的256位寄存器和SSE的128位寄存器存在着相互重叠的关系(XMM寄存器为YMM寄存器的低位)，所以最好不要混用AVX与SSE指令集，否在会导致<a href="https://link.zhihu.com/?target=https://software.intel.com/en-us/articles/avoiding-avx-sse-transition-penalties">transition penalty</a>(过渡处罚)，两种寄存器的关系如下图：</p>
+<p><img src="https://pic2.zhimg.com/80/v2-de488d6f53fd2e3b94a8452810728069_720w.jpg"></p>
+<p>AVX256位寄存器与SSE128位寄存器的关系</p>
+<p><a href="https://link.zhihu.com/?target=https://software.intel.com/en-us/articles/introduction-to-intel-advanced-vector-extensions">AVX与SSE支持的数据类型如下</a>：</p>
+<p><img src="https://pic3.zhimg.com/80/v2-f13d5ee83a08caa528a1abc201603422_720w.jpg"></p>
+<p>AVX与SSE支持的数据类型</p>
+<p>不同处理器对于SIMD指令集的支持如下图：</p>
+<p><img src="https://pic3.zhimg.com/80/v2-42f84e676fb838f1e2aa2632d4ab0246_720w.jpg"></p>
+<p>不同处理器对于SIMD指令集的支持</p>
+<h2 id="如果想知道CPU的SIMD支持等级可以使用cpuid指令-，或者直接使用cpuz软件查看。"><a href="#如果想知道CPU的SIMD支持等级可以使用cpuid指令-，或者直接使用cpuz软件查看。" class="headerlink" title="如果想知道CPU的SIMD支持等级可以使用cpuid指令 ，或者直接使用cpuz软件查看。"></a>如果想知道CPU的SIMD支持等级可以使用<a href="https://link.zhihu.com/?target=https://docs.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex?view=vs-2017&tdsourcetag=s_pcqq_aiomsg">cpuid指令</a> ，或者直接使用cpuz软件查看。</h2><h2 id="2-如何使用SIMD"><a href="#2-如何使用SIMD" class="headerlink" title="2.如何使用SIMD"></a><strong>2.如何使用SIMD</strong></h2><p>下图给出了使用SIMD的不同方法：</p>
+<p><img src="https://pic2.zhimg.com/80/v2-a1490b3ffd4a96a09ed17e342d279635_720w.jpg"></p>
+<p>使用SIMD的不同方法</p>
+<p>首先是最简单的方法是使用Intel开发的跨平台函数库（IPP，Intel Integrated Performance Primitives ），里面的函数实现都使用了SIMD指令进行优化。</p>
+<p>其次是借助于Auto-vectorization(自动矢量化)，借助编译器将标量操作转化为矢量操作。</p>
+<p>第三种方法是使用编译器指示符(compiler directive)，如Cilk里的#pragma simd和OpenMP里的#pragma omp simd。如下所示，使用#pragma simd强制循环矢量化：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> add_floats（<span class="type">float</span> * a，<span class="type">float</span> * b，<span class="type">float</span> * c，<span class="type">float</span> * d，<span class="type">float</span> * e，<span class="type">int</span> n）</span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> i;</span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> simd</span></span><br><span class="line">    <span class="keyword">for</span>（i = <span class="number">0</span>; i &lt;n; i ++）</span><br><span class="line">    &#123;</span><br><span class="line">        a [i] = a [i] + b [i] + c [i] + d [i] + e [i];</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第四种方法则是使用内置函数(<strong>intrinsics</strong>)的方式，如下所示，使用SSE _mm_add_ps 内置函数，一次执行8个单精度浮点数的加法：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span>  <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __m128 v0 = _mm_set_ps(<span class="number">1.0f</span>, <span class="number">2.0f</span>, <span class="number">3.0f</span>, <span class="number">4.0f</span>);</span><br><span class="line">    __m128 v1 = _mm_set_ps(<span class="number">1.0f</span>, <span class="number">2.0f</span>, <span class="number">3.0f</span>, <span class="number">4.0f</span>);</span><br><span class="line"></span><br><span class="line">    __m128 result = _mm_add_ps(v0, v1);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后一种方法则是使用汇编直接操作寄存器，当然直接使用汇编有点太麻烦了，所以本篇文章主要介绍的方法是使用intrinsics的方式使用SIMD指令。</p>
+<h2 id="3-SSE-x2F-AVX-Intrinsics介绍"><a href="#3-SSE-x2F-AVX-Intrinsics介绍" class="headerlink" title="3.SSE&#x2F;AVX Intrinsics介绍"></a><strong>3.SSE&#x2F;AVX Intrinsics介绍</strong></h2><p><strong>a.头文件</strong></p>
+<p>SSE&#x2F;AVX指令主要定义于以下一些头文件中：</p>
+<ul>
+<li>&lt;xmmintrin.h&gt; : SSE, 支持同时对4个32位单精度浮点数的操作。</li>
+<li>&lt;emmintrin.h&gt; : SSE 2, 支持同时对2个64位双精度浮点数的操作。</li>
+<li>&lt;pmmintrin.h&gt; : SSE 3, 支持对SIMD寄存器的水平操作(horizontal operation)，如hadd, hsub等…。</li>
+<li>&lt;tmmintrin.h&gt; : SSSE 3, 增加了额外的instructions。</li>
+<li>&lt;smmintrin.h&gt; : SSE 4.1, 支持点乘以及更多的整形操作。</li>
+<li>&lt;nmmintrin.h&gt; : SSE 4.2, 增加了额外的instructions。</li>
+<li>&lt;immintrin.h&gt; : AVX, 支持同时操作8个单精度浮点数或4个双精度浮点数。</li>
+</ul>
+<p>每一个头文件都包含了之前的所有头文件，所以如果你想要使用SSE4.2以及之前SSE3, SSE2, SSE中的所有函数就只需要包含&lt;nmmintrin.h&gt;头文件。</p>
+<p><strong>b.命名规则</strong></p>
+<p>SSE&#x2F;AVX提供的数据类型和函数的命名规则如下：</p>
+<ol>
+<li>数据类型通常以_mxxx(T)的方式进行命名，其中xxx代表数据的位数，如SSE提供的__m128为128位，AVX提供的__m256为256位。T为类型，若为单精度浮点型则省略，若为整形则为i，如__m128i，若为双精度浮点型则为d，如__m256d。</li>
+<li>操作浮点数的内置函数命名方式为：_mm(xxx)_name_PT。 xxx为SIMD寄存器的位数，若为128m则省略，如_mm_addsub_ps，若为_256m则为256，如_mm256_add_ps。 name为函数执行的操作的名字，如加法为_mm_add_ps，减法为_mm_sub_ps。 P代表的是对矢量(packed data vector)还是对标量(scalar)进行操作，如_mm_add_ss是只对最低位的32位浮点数执行加法，而_mm_add_ps则是对4个32位浮点数执行加法操作。 T代表浮点数的类型，若为s则为单精度浮点型，若为d则为双精度浮点，如_mm_add_pd和_mm_add_ps。</li>
+<li>操作整形的内置函数命名方式为：_mm(xxx)_name_epUY。xxx为SIMD寄存器的位数，若为128位则省略。 name为函数的名字。U为整数的类型，若为无符号类型则为u，否在为i，如_mm_adds_epu16和_mm_adds_epi16。Y为操作的数据类型的位数，如_mm_cvtpd_pi32。</li>
+</ol>
+<p><strong>c.instructions的分类</strong></p>
+<p>instructions按执行操作类别的不同主要分为以下几类：</p>
+<p>1).存取操作(load&#x2F;store&#x2F;set)</p>
+<p>load系列可以用来从内存中载入数据到SSE&#x2F;AVX提供的类型中，如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __declspec(<span class="built_in">align</span>(<span class="number">16</span>)) <span class="type">float</span> p[] = &#123; <span class="number">1.0f</span>, <span class="number">2.0f</span>, <span class="number">3.0f</span>, <span class="number">4.0f</span> &#125;;</span><br><span class="line">    __m128 v = _mm_load_ps(p);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>_mm_load_ps可以从16字节对齐的连续内存中加载4个32位单精度浮点数到__m128数据类型中（若不对齐则加载会出错）。</p>
+<p>_mm_loadu_ps同_mm_load_ps的作用相同，但不要求提供的内存地址对齐。</p>
+<p>_mm_load_ps1是从内存中载入一个32位浮点数，并重复存储到__m128中的4个浮点数中，即：m[0] &#x3D; p[0], m[1] &#x3D; p[0], m[2] &#x3D; p[0], m[3] &#x3D; p[0]。</p>
+<p>_mm_load_ss则是从内存中载入一个32位浮点数，并将其赋值给__m128中的最低位的浮点数，并将高位的3个浮点数设置为0，即：m[0] &#x3D; p[0], m[1] &#x3D; 0, m[2] &#x3D; 0, m[3] &#x3D; 0。</p>
+<p>_mm_loadr_ps位载入4个32位浮点数并将其反向赋值给__m128中的4个浮点数，即：m[0] &#x3D; p[3], m[1] &#x3D; p[2], m[2] &#x3D; p[1], m[3] &#x3D; p[0]。</p>
+<p>除此之外还有_mm_loadh_pd，_mm_loadl_pi等…</p>
+<p>store系列可以将SSE&#x2F;AVX提供的类型中的数据存储到内存中，如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __declspec(<span class="built_in">align</span>(<span class="number">16</span>)) <span class="type">float</span> p[] = &#123; <span class="number">1.0f</span>, <span class="number">2.0f</span>, <span class="number">3.0f</span>, <span class="number">4.0f</span> &#125;;</span><br><span class="line">    __m128 v = _mm_load_ps(p);</span><br><span class="line"></span><br><span class="line">    __declspec(<span class="built_in">align</span>(<span class="number">16</span>)) <span class="type">float</span> a[] = &#123; <span class="number">1.0f</span>, <span class="number">2.0f</span>, <span class="number">3.0f</span>, <span class="number">4.0f</span> &#125;;</span><br><span class="line">    _mm_store_ps(a, v);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>_mm_store_ps可以__m128中的数据存储到16字节对齐的内存。</p>
+<p>_mm_storeu_ps不要求存储的内存对齐。</p>
+<p>_mm_store_ps1则是把__m128中最低位的浮点数存储为4个相同的连续的浮点数，即：p[0] &#x3D; m[0], p[1] &#x3D; m[0], p[2] &#x3D; m[0], p[3] &#x3D; m[0]。</p>
+<p>_mm_store_ss是存储__m128中最低位的位浮点数到内存中。</p>
+<p>_mm_storer_ps是按相反顺序存储__m128中的4个浮点数。</p>
+<p>set系列可以直接设置SSE&#x2F;AVX提供的类型中的数据，如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">__m128 v = _mm_set_ps(<span class="number">0.5f</span>, <span class="number">0.2f</span>, <span class="number">0.3f</span>, <span class="number">0.4f</span>);</span><br></pre></td></tr></table></figure>
+
+<p>_mm_set_ps可以将4个32位浮点数按<strong>相反顺序</strong>赋值给__m128中的4个浮点数，即：_mm_set_ps(a, b, c, d) : m[0] &#x3D; d, m[1] &#x3D; c, m[2] &#x3D; b, m[3] &#x3D; a。</p>
+<p>_mm_set_ps1则是将一个浮点数赋值给__m128中的四个浮点数。</p>
+<p>_mm_set_ss是将给定的浮点数设置到__m128中的最低位浮点数中，并将高三位的浮点数设置为0.</p>
+<p>_mm_setzero_ps是将__m128中的四个浮点数全部设置为0.</p>
+<p>2). 算术运算</p>
+<p>SSE&#x2F;AVX提供的算术运算操作包括：</p>
+<ul>
+<li>_mm_add_ps，_mm_add_ss等加法系列</li>
+<li>_mm_sub_ps，_mm_sub_pd等减法系列</li>
+<li>_mm_mul_ps，_mm_mul_epi32等乘法系列</li>
+<li>_mm_div_ps，_mm_div_ss等除法系列</li>
+<li>_mm_sqrt_pd，_mm_rsqrt_ps等开平方系列</li>
+<li>_mm_rcp_ps，_mm_rcp_ss等求倒数系列</li>
+<li>_mm_dp_pd，_mm_dp_ps计算点乘</li>
+</ul>
+<p>此外还有向下取整，向上取整等运算，这里只列出了浮点数支持的算术运算类型，还有一些整形的算术运算类型未列出。</p>
+<p>3).比较运算</p>
+<p>SSE&#x2F;AVX提供的比较运算操作包括：</p>
+<ul>
+<li>_mm_max_ps逐分量对比两个数据，并将较大的分量存储到返回类型的对应位置中。</li>
+<li>_mm_min_ps逐分量对比两个数据，并将较小的分量存储到返回类型的对应位置中。</li>
+<li>_mm_cmpeq_ps逐分量对比两个数据是否相等。</li>
+<li>_mm_cmpge_ps逐分量对比一个数据是否大于等于另一个是否相等。</li>
+<li>_mm_cmpgt_ps逐分量对比一个数据是否大于另一个是否相等。</li>
+<li>_mm_cmple_ps逐分量对比一个数据是否小于等于另一个是否相等。</li>
+<li>_mm_cmplt_ps逐分量对比一个数据是否小于另一个是否相等。</li>
+<li>_mm_cmpneq_ps逐分量对比一个数据是否不等于另一个是否相等。</li>
+<li>_mm_cmpnge_ps逐分量对比一个数据是否不大于等于另一个是否相等。</li>
+<li>_mm_cmpngt_ps逐分量对比一个数据是否不大于另一个是否相等。</li>
+<li>_mm_cmpnle_ps逐分量对比一个数据是否不小于等于另一个是否相等。</li>
+<li>_mm_cmpnlt_ps逐分量对比一个数据是否不小于另一个是否相等。</li>
+</ul>
+<p>此外还有一些执行单分量对比的比较运算</p>
+<p>4).逻辑运算</p>
+<p>SSE&#x2F;AVX提供的逻辑运算操作包括：</p>
+<ul>
+<li>_mm_and_pd对两个数据逐分量and</li>
+<li>_mm_andnot_ps先对第一个数进行not，然后再对两个数据进行逐分量and</li>
+<li>_mm_or_pd对两个数据逐分量or</li>
+<li>_mm_xor_ps对两个数据逐分量xor</li>
+</ul>
+<p>5).Swizzle运算</p>
+<p>包含_mm_shuffle_ps，_mm_blend_ps, _mm_movelh_ps等。</p>
+<p>这里主要介绍以下_mm_shuffle_ps:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __m128 a = _mm_set_ps(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>);</span><br><span class="line">    __m128 b = _mm_set_ps(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">    __m128 v = _mm_shuffle_ps(a, b, _MM_SHUFFLE(<span class="number">1</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">2</span>)); <span class="comment">// 2, 1, 8, 7</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>_mm_shuffle_ps读取两个__m128类型的数据a和b，并按照_MM_SHUFFLE提供的索引将返回的__m128类型数据的低两位设置为a中按索引值取得到的对应值，将高两位设置为按索引值从b中取得到的对应值。索引值在0到3之间，分别以相反的顺序对应__m128中的四个浮点数。</p>
+<p>SSE&#x2F;AVX还提供了类型转换等操作，这里就不做介绍了。</p>
+<p>PS:补充一个操作指令：_mm_cvtss_f32，可以获取__m128中的最低位浮点数并返回。</p>
+<p><strong>4. Practice环节</strong></p>
+<p>现在可以使用之前所介绍的instructions来实现一个简单的数学运算库。</p>
+<p>首先需要定义一些宏：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span> SIMD_LEVEL</span></span><br><span class="line">    <span class="meta">#<span class="keyword">if</span> defined(__AVX__) || defined(__AVX2__)</span></span><br><span class="line">        <span class="meta">#<span class="keyword">define</span> SIMD_LEVEL 2    <span class="comment">//Support SSE4, AVX, AVX2</span></span></span><br><span class="line">        <span class="meta">#<span class="keyword">include</span> <span class="string">&lt;immintrin.h&gt;</span>  </span></span><br><span class="line">    <span class="meta">#<span class="keyword">elif</span> defined(_M_IX86_FP) &amp;&amp; (_M_IX86_FP == 2)</span></span><br><span class="line">        <span class="meta">#<span class="keyword">define</span> SIMD_LEVEL 1    <span class="comment">//Support SSE2</span></span></span><br><span class="line">        <span class="meta">#<span class="keyword">include</span> <span class="string">&lt;emmintrin.h&gt;</span>     </span></span><br><span class="line">    <span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">        <span class="meta">#<span class="keyword">define</span> SIMD_LEVEL 0    </span></span><br><span class="line">    <span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// !SIMD_LEVEL</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifndef</span> AMVector</span></span><br><span class="line">    <span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line">        <span class="keyword">typedef</span> Vector4&lt;<span class="type">float</span>&gt; AMVector;</span><br><span class="line">        <span class="keyword">typedef</span> <span class="type">const</span> Vector4&lt;<span class="type">float</span>&gt;&amp; CRAMVector;</span><br><span class="line">    <span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">        <span class="keyword">typedef</span> __m128 AMVector;</span><br><span class="line">        <span class="keyword">typedef</span> <span class="type">const</span> AMVector CRAMVector;</span><br><span class="line">    <span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// !AMVector</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SHUFFLE4(V, X,Y,Z,W) (_mm_shuffle_ps(V, V, _MM_SHUFFLE(W,Z,Y,X)))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SHUFFLE3(V, X,Y,Z) (_mm_shuffle_ps(V, V, _MM_SHUFFLE(3,Z,Y,X)))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SHUFFLE2(V, X,Y) (_mm_shuffle_ps(V, V, _MM_SHUFFLE(3,2,Y,X)))</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> AM_INLINEF  __forceinline</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> AM_CALLCONV __vectorcall</span></span><br></pre></td></tr></table></figure>
+
+<p>visual studio上可以通过__AVX__，__AVX2__等宏检测是否支持AVX指令集，_M_IX86_FP为2则表示支持SSE2，为1则表示支持SSE，否则不支持SSE。</p>
+<p>这里将__m128类型定义为AMVector，并且定义了SHUFFLE4等宏方便对__m128类型进行Swizzle运算。</p>
+<p>因为我们定义的函数都比较短，所以有必要把所有函数都定义为_forceinline来减少函数调用开销。x64上的默认函数调用约定为__fastcall，前两个参数通过寄存器传递，其他参数通过堆栈传递，而__vectorcall能使用比__fastcall更多的寄存器传递参数，并且支持__m128矢量类型，在可能的情况下可以通过寄存器返回函数返回值。（关于__vectorcall的更多信息可以查看<a href="https://link.zhihu.com/?target=https://blogs.msdn.microsoft.com/vcblog/2013/07/11/introducing-vector-calling-convention/">Introducing ‘Vector Calling Convention’</a>）</p>
+<p>首先需要定义加，减，乘，除等算术运算与赋值操作：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> + (CRAMVector lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_add_ps(lhs, rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> += (AMVector &amp;lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = _mm_add_ps(lhs, rhs);</span><br><span class="line">    <span class="keyword">return</span> lhs;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> - (CRAMVector lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_sub_ps(lhs, rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> -= (AMVector &amp;lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = <span class="built_in">mm_sub_ps</span>(lhs, rhs);</span><br><span class="line">    <span class="keyword">return</span> lhs;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> * (CRAMVector lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_mul_ps(lhs, rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> * (CRAMVector lhs, <span class="type">float</span> rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_mul_ps(lhs, _mm_set1_ps(rhs));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> * (<span class="type">float</span> lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_mul_ps(_mm_set1_ps(lhs), rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> *= (AMVector&amp; lhs, <span class="type">float</span> rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = _mm_mul_ps(lhs, _mm_set1_ps(rhs));</span><br><span class="line">    <span class="keyword">return</span> lhs;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> *= (AMVector&amp; lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = _mm_mul_ps(lhs, rhs);</span><br><span class="line">    <span class="keyword">return</span> lhs</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> / (CRAMVector lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_div_ps(lhs, rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> / (CRAMVector lhs, <span class="type">float</span> rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_div_ps(lhs, _mm_set1_ps(rhs</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector AM_CALLCONV <span class="keyword">operator</span> / (<span class="type">float</span> lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_div_ps(_mm_set1_ps(lhs), rhs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> /= (AMVector&amp; lhs, <span class="type">float</span> rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = _mm_div_ps(lhs, _mm_set1_ps(rhs));</span><br><span class="line">    <span class="keyword">return</span> lhs;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">AM_INLINEF AMVector&amp; AM_CALLCONV <span class="keyword">operator</span> /= (AMVector&amp; lhs, CRAMVector rhs)</span><br><span class="line">&#123;</span><br><span class="line">    lhs = _mm_div_ps(lhs, rhs);</span><br><span class="line">    <span class="keyword">return</span> lh</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后可以定义一些Set，get 操作方便我们存储和读取__m128中的值：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_set</span><span class="params">(<span class="type">float</span> x, <span class="type">float</span> y, <span class="type">float</span> z, <span class="type">float</span> w)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_set_ps(w, z, y, x);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF <span class="type">float</span> AM_CALLCONV <span class="title">am_vector_get_y</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_cvtss_f32(_mm_shuffle_ps(v, v, _MM_SHUFFLE(<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>)));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>之后就是必不可少的点乘和叉乘操作了：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector3_dot</span><span class="params">(CRAMVector lhs, CRAMVector rhs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line">    <span class="type">float</span> dot = lhs.<span class="built_in">x</span>() * rhs.<span class="built_in">x</span>() + lhs.<span class="built_in">y</span>() * rhs.<span class="built_in">y</span>() + lhs.<span class="built_in">z</span>() * rhs.<span class="built_in">z</span>();</span><br><span class="line">    <span class="keyword">return</span>    Vector4&lt;<span class="type">float</span>&gt;&#123;dot&#125;;</span><br><span class="line"><span class="meta">#<span class="keyword">elif</span> SIMD_LEVEL == 1</span></span><br><span class="line">    AMVector dot = _mm_mul_ps(lhs, rhs);</span><br><span class="line">    AMVector temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    dot = _mm_add_ps(dot, temp);</span><br><span class="line">    temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line">    dot = _mm_add_ps(dot, temp);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">SHUFFLE4</span>(dot, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="keyword">return</span> _mm_dp_ps(lhs, rhs, <span class="number">0x7f</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// SIMD_LEVEL == 0</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果支持SSE4则可以直接采用_mm_dp_ps实现点乘操作，否则若支持SSE则可以将lhs和rhs相乘，然后通过shuffle操作打乱乘法操作的结果，并将对应的的三个分量加起来。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector3_cross</span><span class="params">(CRAMVector lhs, CRAMVector rhs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line">    <span class="keyword">return</span>    <span class="built_in">vector4_cross3</span>(lhs, rhs);</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="comment">//http://threadlocalmutex.com/?p=8  Investigating SSE Cross Product Performance</span></span><br><span class="line">    <span class="comment">//return _mm_sub_ps(_mm_mul_ps(SHUFFLE3(lhs, 1, 2, 0), SHUFFLE3(rhs, 2, 0, 1)), _mm_mul_ps(SHUFFLE3(lhs, 2, 0, 1), SHUFFLE3(rhs, 1, 2, 0)));</span></span><br><span class="line">    AMVector result = _mm_sub_ps(_mm_mul_ps(lhs, <span class="built_in">SHUFFLE3</span>(rhs, <span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>)), _mm_mul_ps(<span class="built_in">SHUFFLE3</span>(lhs, <span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>), rhs));</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">SHUFFLE3</span>(result, <span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// SIMD_LEVEL == 0</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>三维向量的叉乘操作定义为：<br><code>cross(a, b) = a.yzx * b.zxy - a.zxy * b.yzx;</code></p>
+<p>可以表示为：</p>
+<ul>
+<li><code>cross(a, b).x = a.y * b.z - a.z * b.y;</code></li>
+<li><code>cross(a, b).y = a.z * b.x - a.x * b.z;</code></li>
+<li><code>cross(a, b).z = a.x * b.y - a.y * b.x;</code></li>
+</ul>
+<p>可以将上面的式子重新排序如下：</p>
+<ul>
+<li><code>cross(a, b).z = a.x * b.y - a.y * b.x;</code></li>
+<li><code>cross(a, b).x = a.y * b.z - a.z * b.y;</code></li>
+<li><code>cross(a, b).y = a.z * b.x - a.x * b.z;</code></li>
+</ul>
+<p>然后我们就可以得到：</p>
+<p><code>cross(a, b).zxy = a * b.yzx - a.yzx * b;</code></p>
+<p>即：</p>
+<p><code>cross(a, b) = (a * b.yzx - a.yzx * b).yzx;</code></p>
+<p>这样以来叉乘的实现就只需要3个shuffle操作即可完成，比起代码中我原来实现的方法少了一个shuffle指令，效率更高(上面介绍的叉乘操作方法来自于<a href="https://link.zhihu.com/?target=http://threadlocalmutex.com/?p=8">Investigating SSE Cross Product Performance</a>)。</p>
+<p>随后可以定义向量的取模和归一化操作：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector3_length_sq</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">am_vector3_dot</span>(v, v);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector3_length</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line">    <span class="type">float</span> dot = v.<span class="built_in">x</span>() * v.<span class="built_in">x</span>() + v.<span class="built_in">y</span>() * v.<span class="built_in">y</span>() + v.<span class="built_in">z</span>() * v.<span class="built_in">z</span>();</span><br><span class="line">    <span class="keyword">return</span>    Vector4&lt;<span class="type">float</span>&gt;&#123; std::<span class="built_in">sqrt</span>(dot) &#125;;</span><br><span class="line"><span class="meta">#<span class="keyword">elif</span> SIMD_LEVEL == 1</span></span><br><span class="line">    AMVector dot = _mm_mul_ps(v, v);</span><br><span class="line">    AMVector temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    dot = _mm_add_ps(dot, temp);</span><br><span class="line">    temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line">    dot = _mm_sqrt_ss(_mm_add_ps(dot, temp));</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">SHUFFLE4</span>(dot, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="keyword">return</span> _mm_sqrt_ps(_mm_dp_ps(v, v, <span class="number">0x7f</span>));</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// SIMD_LEVEL == 0</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>计算向量的模可以先通过对向量和它本身做点击计算出模的平方，然后再对其开平方求得。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector3_normalize_est</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line">    <span class="type">float</span> dot = v.<span class="built_in">x</span>() * v.<span class="built_in">x</span>() + v.<span class="built_in">y</span>() * v.<span class="built_in">y</span>() + v.<span class="built_in">z</span>() * v.<span class="built_in">z</span>();</span><br><span class="line">    <span class="keyword">return</span>    <span class="built_in">vector4_divide</span>(v, std::<span class="built_in">sqrt</span>(dot));</span><br><span class="line"><span class="meta">#<span class="keyword">elif</span> SIMD_LEVEL == 1</span></span><br><span class="line">    AMVector dot = _mm_mul_ps(v, v);</span><br><span class="line">    AMVector temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    dot = _mm_add_ps(dot, temp);</span><br><span class="line">    temp = <span class="built_in">SHUFFLE4</span>(dot, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line">    dot = _mm_rsqrt_ss(_mm_add_ps(dot, temp));</span><br><span class="line">    <span class="keyword">return</span> _mm_mul_ps(v, <span class="built_in">SHUFFLE4</span>(dot, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>));</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="keyword">return</span> _mm_mul_ps(v, _mm_rsqrt_ps(_mm_dp_ps(v, v, <span class="number">0x7f</span>)));</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// SIMD_LEVEL == 0</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>对向量进行归一化即 v&#x2F;v.length，需要求向量模的倒数，可以通过_mm_rsqrt_ps取倒数，但是会有一些误差，也可以通过_mm_div_ps(1, length)取得精确的倒数值。</p>
+<p>此外还定义了sqrt, lerp, clamp, saturate等函数。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_sqrt_est</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_rsqrt_ps(v);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_lerp</span><span class="params">(<span class="type">float</span> t, CRAMVector lhs, CRAMVector rhs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_add_ps(lhs, <span class="built_in">am_vector_scale</span>(_mm_sub_ps(rhs, lhs), t));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_clamp</span><span class="params">(CRAMVector v, CRAMVector min, CRAMVector max)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_max_ps(_mm_min_ps(v, max), min);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_saturate</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _mm_max_ps(_mm_min_ps(v, am_const_one), am_const_zero);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>还有一些算术运算如log，exp，pow等函数可以借助标准库std::log, std::exp, std::pow实现</p>
+<p>(pow实现整数指数计算比较简单，但是要支持浮点数就有些麻烦了…，exp虽然可以通过泰勒展开式计算，但是要计算到比较精确的值需要计算100项以上，速度比较慢，而且误差也比加大…)</p>
+<p>三角函数可以通过泰勒展开式计算，只需要计算5项左右就可以得到比较好的精度了：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_acos</span><span class="params">(CRAMVector v)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AMVector v2 = _mm_mul_ps(v, v);</span><br><span class="line">    AMVector v3 = _mm_mul_ps(v2, v);</span><br><span class="line">    AMVector v5 = _mm_mul_ps(v3, v2);</span><br><span class="line">    AMVector v7 = _mm_mul_ps(v5, v2);</span><br><span class="line">    AMVector v9 = _mm_mul_ps(v7, v2);</span><br><span class="line"></span><br><span class="line">    AMVector result = _mm_sub_ps(_mm_sub_ps(_mm_sub_ps(_mm_sub_ps(_mm_sub_ps(am_const_half_pi, v), _mm_mul_ps(v3, _mm_set1_ps(<span class="number">0.16666666666667f</span>))),</span><br><span class="line">        _mm_mul_ps(v5, _mm_set1_ps(<span class="number">0.075f</span>))), _mm_mul_ps(v7, _mm_set1_ps(<span class="number">0.04464285714f</span>))), _mm_mul_ps(v9, _mm_set1_ps(<span class="number">0.030381944444444f</span>)));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>常见的三角函数泰勒展开式都可以在<a href="https://link.zhihu.com/?target=https://en.wikipedia.org/wiki/Taylor_series">wiki</a>上找到：</p>
+<p><img src="https://pic3.zhimg.com/80/v2-6bf286fefece577d7625de67c902ba2a_720w.jpg"></p>
+<p>常见三角函数的泰勒展开式</p>
+<p>除了这些算术运算外还定义了floor, ceil等函数直接借助于SSE的_mm_floor_ps和_mm_ceil_ps函数进行计算。</p>
+<p>然后就是比较运算：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="type">int</span> AM_MASK;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF AM_MASK AM_CALLCONV <span class="title">am_vector_less</span><span class="params">(CRAMVector lhs, CRAMVector rhs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AMVector temp = _mm_cmplt_ps(lhs, rhs);</span><br><span class="line">    <span class="keyword">return</span> _mm_movemask_ps(temp);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF <span class="type">bool</span> <span class="title">am_mask_all3</span><span class="params">(AM_MASK m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (m &amp; <span class="number">7</span>) == <span class="number">7</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">AM_INLINEF <span class="type">bool</span> <span class="title">am_mask_any3</span><span class="params">(AM_MASK m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (m &amp; <span class="number">7</span>) != <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>_mm_cmplt_ps函数返回的是__m128类型的数据，其中存储了逐分量比较的结果，如果条件成立则为-nan，否则为0：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __m128 a = <span class="built_in">am_vector_set</span>(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">4</span>);</span><br><span class="line">    __m128 b = <span class="built_in">am_vector_set</span>(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">    __m128 v = _mm_cmpeq_ps(a, b); <span class="comment">// -nan, -nan, -nan, 0</span></span><br><span class="line">    AM_MASK mask = _mm_movemask_ps(v);    <span class="comment">// 7</span></span><br><span class="line">    <span class="type">bool</span> all = <span class="built_in">am_mask_all3</span>(mask);    <span class="comment">//true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以使用_mm_movemask_ps将比较结果转化为int类型的值，此int值从低到高的4位分别对应两个__m128从低到高逐分量比较的结果，所以这个int类型的值的范围在0-15之间。可以通过检查这个int类型的值判断条件是否都成立，或其中一个是否成立。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMVector AM_CALLCONV <span class="title">am_vector_select</span><span class="params">(CRAMVector a, CRAMVector b, CRAMVector condition)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="comment">//.....</span></span><br><span class="line"><span class="meta">#<span class="keyword">elif</span> SIMD_LEVEL == 1</span></span><br><span class="line">    <span class="keyword">return</span> _mm_or_ps(_mm_andnot_ps(condition, a), _mm_and_ps(b, condition));</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="keyword">return</span> _mm_blendv_ps(a, b, condition);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// SIMD_LEVEL == 0</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以定义一个select函数，根据比较结果，选择a或b中的对应分量作为返回值的对应分量(如果为true则选择b，否则选择a)，如果支持sse则select函数通过位操作实现，若支持sse4则可以通过_mm_blendv_ps指令实现。select函数的效果如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __m128 a = <span class="built_in">am_vector_set</span>(<span class="number">1</span>, <span class="number">9</span>, <span class="number">3</span>, <span class="number">10</span>);</span><br><span class="line">    __m128 b = <span class="built_in">am_vector_set</span>(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">    __m128 v = _mm_cmplt_ps(a, b); <span class="comment">//  -nan, 0, -nan, 0</span></span><br><span class="line"></span><br><span class="line">    __m128 result = <span class="built_in">am_vector_select</span>(a, b, v);    <span class="comment">// 5, 9, 7, 10</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上差不多介绍了所有向量支持的操作。接下来可以实现下简单的矩阵操作。</p>
+<p>矩阵的定义如下（这里矩阵采用的是行主序(Row Major)）：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">alignas</span>(<span class="number">16</span>) SIMDMatrix</span><br><span class="line">&#123;</span><br><span class="line">    AMVector m_rows[<span class="number">4</span>];</span><br><span class="line"></span><br><span class="line">    <span class="built_in">SIMDMatrix</span>()= <span class="keyword">default</span>;</span><br><span class="line">    <span class="built_in">SIMDMatrix</span>(<span class="type">const</span> SIMDMatrix &amp;m)</span><br><span class="line">    &#123;</span><br><span class="line">        m_rows[<span class="number">0</span>] = m.m_rows[<span class="number">0</span>];</span><br><span class="line">        m_rows[<span class="number">1</span>] = m.m_rows[<span class="number">1</span>];</span><br><span class="line">        m_rows[<span class="number">2</span>] = m.m_rows[<span class="number">2</span>];</span><br><span class="line">        m_rows[<span class="number">3</span>] = m.m_rows[<span class="number">3</span>];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">SIMDMatrix</span>(<span class="type">float</span> a00, <span class="type">float</span> a01, <span class="type">float</span> a02, <span class="type">float</span> a03,</span><br><span class="line">        <span class="type">float</span> a10, <span class="type">float</span> a11, <span class="type">float</span> a12, <span class="type">float</span> a13,</span><br><span class="line">        <span class="type">float</span> a20, <span class="type">float</span> a21, <span class="type">float</span> a22, <span class="type">float</span> a23,</span><br><span class="line">        <span class="type">float</span> a30, <span class="type">float</span> a31, <span class="type">float</span> a32, <span class="type">float</span> a33)</span><br><span class="line">    &#123;</span><br><span class="line">        m_rows[<span class="number">0</span>] = <span class="built_in">am_vector_set</span>(a00, a01, a02, a03);</span><br><span class="line">        m_rows[<span class="number">1</span>] = <span class="built_in">am_vector_set</span>(a10, a11, a12, a13);</span><br><span class="line"></span><br><span class="line">        m_rows[<span class="number">2</span>] = <span class="built_in">am_vector_set</span>(a20, a21, a22, a23);</span><br><span class="line">        m_rows[<span class="number">3</span>] = <span class="built_in">am_vector_set</span>(a30, a31, a32, a33);</span><br><span class="line">    &#125;</span><br><span class="line"><span class="comment">//......</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">if</span> SIMD_LEVEL == 0</span></span><br><span class="line"><span class="keyword">typedef</span> Matrix4x4&lt;<span class="type">float</span>&gt; AMMatrix;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">const</span> Matrix4x4&lt;<span class="type">float</span>&gt;&amp; CRAMMatrix;</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line"><span class="keyword">typedef</span> SIMDMatrix AMMatrix;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">const</span> SIMDMatrix CRAMMatrix;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+<p>矩阵也定义了一些set函数，和AMVector定义的set函数差不多，这里就不再给出了。</p>
+<p>接下来定义矩阵与矩阵的相乘操作，考虑两个矩阵a和b相乘得到c：</p>
+<p><img src="https://pic1.zhimg.com/80/v2-a2699b789cd49bff9069668456e398b4_720w.jpg"></p>
+<p>矩阵相乘</p>
+<p>根据矩阵相乘的定义(a的行乘以b的列)，可以得到c的第一行为：</p>
+<p><img src="https://pic3.zhimg.com/80/v2-58a14d57b5e41be7127e067017db5b6e_720w.png"></p>
+<p>对上面的式子重新排列后可以得到：</p>
+<p><img src="https://pic1.zhimg.com/80/v2-963fcdaf1c920934f4ed3a565d582ccc_720w.png"></p>
+<p>即c的第0行为a的第零行第零列的元素乘以b的第0行元素加上a的第零行第一列的元素乘以b的第2行元素加上a的第零行第二列的元素乘以b的第3行元素最后再加上a的第零行第三列的元素乘以b的第3行元素。c的其他行与第一行类似，代码实现如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMMatrix AM_CALLCONV <span class="title">am_matrix_multiply</span><span class="params">(CRAMMatrix lhs, CRAMMatrix rhs)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AMMatrix result;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//Row0</span></span><br><span class="line">    AMVector vec = lhs.m_rows[<span class="number">0</span>];</span><br><span class="line">    AMVector vec_x = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">    AMVector vec_y = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    AMVector vec_z = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    AMVector vec_w = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_mul_ps(vec_x, rhs.m_rows[<span class="number">0</span>]);</span><br><span class="line">    vec_y = _mm_mul_ps(vec_y, rhs.m_rows[<span class="number">1</span>]);</span><br><span class="line">    vec_z = _mm_mul_ps(vec_z, rhs.m_rows[<span class="number">2</span>]);</span><br><span class="line">    vec_w = _mm_mul_ps(vec_w, rhs.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_add_ps(vec_x, vec_y);</span><br><span class="line">    vec_z = _mm_add_ps(vec_z, vec_w);</span><br><span class="line"></span><br><span class="line">    result.m_rows[<span class="number">0</span>] = _mm_add_ps(vec_x, vec_z);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//Row1</span></span><br><span class="line">    vec = lhs.m_rows[<span class="number">1</span>];</span><br><span class="line">    vec_x = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">    vec_y = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    vec_z = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    vec_w = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_mul_ps(vec_x, rhs.m_rows[<span class="number">0</span>]);</span><br><span class="line">    vec_y = _mm_mul_ps(vec_y, rhs.m_rows[<span class="number">1</span>]);</span><br><span class="line">    vec_z = _mm_mul_ps(vec_z, rhs.m_rows[<span class="number">2</span>]);</span><br><span class="line">    vec_w = _mm_mul_ps(vec_w, rhs.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_add_ps(vec_x, vec_y);</span><br><span class="line">    vec_z = _mm_add_ps(vec_z, vec_w);</span><br><span class="line"></span><br><span class="line">    result.m_rows[<span class="number">1</span>] = _mm_add_ps(vec_x, vec_z);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//Row2</span></span><br><span class="line">    vec = lhs.m_rows[<span class="number">2</span>];</span><br><span class="line">    vec_x = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">    vec_y = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    vec_z = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    vec_w = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_mul_ps(vec_x, rhs.m_rows[<span class="number">0</span>]);</span><br><span class="line">    vec_y = _mm_mul_ps(vec_y, rhs.m_rows[<span class="number">1</span>]);</span><br><span class="line">    vec_z = _mm_mul_ps(vec_z, rhs.m_rows[<span class="number">2</span>]);</span><br><span class="line">    vec_w = _mm_mul_ps(vec_w, rhs.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_add_ps(vec_x, vec_y);</span><br><span class="line">    vec_z = _mm_add_ps(vec_z, vec_w);</span><br><span class="line"></span><br><span class="line">    result.m_rows[<span class="number">2</span>] = _mm_add_ps(vec_x, vec_z);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//Row3</span></span><br><span class="line">    vec = lhs.m_rows[<span class="number">3</span>];</span><br><span class="line">    vec_x = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">    vec_y = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>);</span><br><span class="line">    vec_z = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">2</span>);</span><br><span class="line">    vec_w = <span class="built_in">SHUFFLE4</span>(vec, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_mul_ps(vec_x, rhs.m_rows[<span class="number">0</span>]);</span><br><span class="line">    vec_y = _mm_mul_ps(vec_y, rhs.m_rows[<span class="number">1</span>]);</span><br><span class="line">    vec_z = _mm_mul_ps(vec_z, rhs.m_rows[<span class="number">2</span>]);</span><br><span class="line">    vec_w = _mm_mul_ps(vec_w, rhs.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    vec_x = _mm_add_ps(vec_x, vec_y);</span><br><span class="line">    vec_z = _mm_add_ps(vec_z, vec_w);</span><br><span class="line"></span><br><span class="line">    result.m_rows[<span class="number">3</span>] = _mm_add_ps(vec_x, vec_z);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>向量与矩阵相乘采用的是左乘，计算方式与上面计算c的第一行的方式完全相同。</p>
+<p>接下来是定义矩阵转置操作，转置操作用到了_mm_unpacklo_ps，_mm_unpackhi_ps，_mm_movelh_ps，_mm_movehl_ps等操作。这里简单介绍下_mm_unpacklo_ps和_mm_movelh_ps。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    __m128 a = <span class="built_in">am_vector_set</span>(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>);</span><br><span class="line">    __m128 b = <span class="built_in">am_vector_set</span>(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line"></span><br><span class="line">    __m128 v = _mm_unpacklo_ps(a, b); <span class="comment">//  1, 5, 2, 6</span></span><br><span class="line">    <span class="comment">//v[0] = a[0]</span></span><br><span class="line">    <span class="comment">//v[1] = b[0]</span></span><br><span class="line">    <span class="comment">//v[2] = a[1]</span></span><br><span class="line">    <span class="comment">//v[3] = b[1]</span></span><br><span class="line"></span><br><span class="line">    v = _mm_movelh_ps(a, b); <span class="comment">// 1, 2, 5, 6</span></span><br><span class="line">    <span class="comment">//v[0] = a[0]</span></span><br><span class="line">    <span class="comment">//v[1] = a[1]</span></span><br><span class="line">    <span class="comment">//v[2] = b[0]</span></span><br><span class="line">    <span class="comment">//v[3] = b[1]</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>对矩阵A做转置操作可以先对第0行和第1行做_mm_unpacklo_ps操作得到temp1 : {a00, a10, a01, a11}， 再对第2行和第3行做_mm_unpacklo_ps操作得到temp2 : {a20, a30, a21, a31}，再对temp1和temp2做_mm_movelh_ps操作就可以得到转置后矩阵的第一行元素{a00, a10, a20, a30}了。其他行的操作与第一行类似。</p>
+<p>转置操作的完整实现如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">AM_INLINEF AMMatrix AM_CALLCONV <span class="title">am_matrix_transpose</span><span class="params">(CRAMMatrix m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AMVector t0 = _mm_unpacklo_ps(m.m_rows[<span class="number">0</span>], m.m_rows[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">    AMVector t1 = _mm_unpacklo_ps(m.m_rows[<span class="number">2</span>], m.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    AMVector t2 = _mm_unpackhi_ps(m.m_rows[<span class="number">0</span>], m.m_rows[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">    AMVector t3 = _mm_unpackhi_ps(m.m_rows[<span class="number">2</span>], m.m_rows[<span class="number">3</span>]);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> AMMatrix&#123; _mm_movelh_ps(t0, t1), _mm_movehl_ps(t1, t0), _mm_movelh_ps(t2, t3), _mm_movehl_ps(t3, t2) &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>至于矩阵的求逆操作，采用的是分块求逆：</p>
+<p><img src="https://pic2.zhimg.com/80/v2-dafbed01fcf5928b63861ca096d9c7a5_720w.png"></p>
+<p>矩阵分块求逆，A代表左上角2x2的submatrix，B为右上角2x2submatrix，C,D同理</p>
+<p>分块求逆的原理和实现可以参考：<a href="https://link.zhihu.com/?target=https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html">Fast 4x4 Matrix Inverse with SSE SIMD, Explained</a></p>
+<p>到这里整个数学运算库差不多介绍完毕了。</p>
+<p>当然使用SSE&#x2F;AVX的方法也不止使用数学运算库这一种方式，下面给出了一个10000个数字求和的例子，使用SSE指令的求和运算，其速度为标量求和运算的3倍多：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">constexpr</span> <span class="type">size_t</span> num = <span class="number">10000</span>;</span><br><span class="line">    <span class="type">float</span> *vars = <span class="built_in">static_cast</span>&lt;<span class="type">float</span>*&gt;(_aligned_malloc(<span class="built_in">sizeof</span>(<span class="type">float</span>) * num, <span class="number">16</span>));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; num; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        vars[i] = <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> sum = <span class="number">0.0f</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> t0 = std::chrono::steady_clock::<span class="built_in">now</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//Scalar</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; <span class="number">10000</span>; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        sum += vars[i];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> t1 = std::chrono::steady_clock::<span class="built_in">now</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;Scalar sum！&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    std::chrono::duration&lt;<span class="type">double</span>&gt; time_span = std::chrono::duration_cast&lt;std::chrono::duration&lt;<span class="type">double</span>&gt;&gt;(t1 - t0);</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;Time Span: &quot;</span> &lt;&lt; time_span.<span class="built_in">count</span>() &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    std::cout &lt;&lt; sum &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    AMVector vector_sum = <span class="built_in">am_vector_set</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    t0 = std::chrono::steady_clock::<span class="built_in">now</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//SSE</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; <span class="number">10000</span>; i += <span class="number">4</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        vector_sum += <span class="built_in">am_vector_load_aligned</span>(vars + i);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    sum = <span class="built_in">am_vector4_hadd</span>(vector_sum);</span><br><span class="line"></span><br><span class="line">    t1 = std::chrono::steady_clock::<span class="built_in">now</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;SSE sum！&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    time_span = std::chrono::duration_cast&lt;std::chrono::duration&lt;<span class="type">double</span>&gt;&gt;(t1 - t0);</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;Time Span: &quot;</span> &lt;&lt; time_span.<span class="built_in">count</span>() &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    std::cout &lt;&lt; sum &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    _aligned_free(vars);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面的例子还可以扩展出更多内容，不过本篇文章的内容已经够多了，所以留着以后有机会再讲吧…</p>
+<p><strong>如果你觉得本篇文章的内容对你有帮助，请点赞！！！</strong></p>
+<p><strong>引用：</strong></p>
+<ol>
+<li><a href="https://link.zhihu.com/?target=https://software.intel.com/zh-cn/articles/ticker-tape-part-2">https://software.intel.com/zh-cn/articles/ticker-tape-part-2</a></li>
+<li><a href="https://link.zhihu.com/?target=https://johanmabille.github.io/blog/2014/10/09/writing-c-plus-plus-wrappers-for-simd-intrinsics-1/">Writing C++ Wrappers for SIMD Intrinsics (1)</a></li>
+<li><a href="https://link.zhihu.com/?target=http://www.codersnotes.com/notes/maths-lib-2016/">How To Write A Maths Library In 2016</a></li>
+<li><a href="https://link.zhihu.com/?target=https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html">Fast 4x4 Matrix Inverse with SSE SIMD, Explained</a></li>
+<li><a href="https://link.zhihu.com/?target=https://blog.csdn.net/gengshenghong/article/details/7008704">在C&#x2F;C++代码中使用SSE等指令集的指令(3)SSE指令集基础 - 。。。。 - CSDN博客</a></li>
+<li><a href="https://link.zhihu.com/?target=https://software.intel.com/en-us/articles/easy-simd-through-wrappers">Easy SIMD through Wrappers</a></li>
+<li><a href="https://link.zhihu.com/?target=https://blog.csdn.net/a812073479/article/details/80549436">C++中使用SIMD的几种方法 - 道道道人间道 - CSDN博客</a></li>
+</ol>
+<p>如果你想查看所有的SSE&#x2F;AVX指令集可以查看<a href="https://link.zhihu.com/?target=https://software.intel.com/sites/landingpage/IntrinsicsGuide/%23expand=18,1155,1286,450,2913,3836,6065,6065&text=_mm_unpacklo_ps">Intrinsics Guide</a></p>
+<p><a href="https://link.zhihu.com/?target=https://db.in.tum.de/~finis/x86%2520intrinsics%2520cheat%2520sheet%2520v1.0.pdf">https://db.in.tum.de/~finis&#x2F;x86%20intrinsics%20cheat%20sheet%20v1.0.pdf</a> 这个pdf也罗列出了大部分的SSE&#x2F;AVX指令集，以及对应的功能</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/27/C-LikelyAndUnlikely/" rel="prev" title="C++LikelyAndUnlikely">
+      <i class="fa fa-chevron-left"></i> C++LikelyAndUnlikely
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-SIMD%E7%9A%84%E5%8E%86%E5%8F%B2%E4%B8%8E%E5%88%86%E7%B1%BB"><span class="nav-number">1.</span> <span class="nav-text">1.SIMD的历史与分类</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E6%9E%9C%E6%83%B3%E7%9F%A5%E9%81%93CPU%E7%9A%84SIMD%E6%94%AF%E6%8C%81%E7%AD%89%E7%BA%A7%E5%8F%AF%E4%BB%A5%E4%BD%BF%E7%94%A8cpuid%E6%8C%87%E4%BB%A4-%EF%BC%8C%E6%88%96%E8%80%85%E7%9B%B4%E6%8E%A5%E4%BD%BF%E7%94%A8cpuz%E8%BD%AF%E4%BB%B6%E6%9F%A5%E7%9C%8B%E3%80%82"><span class="nav-number">2.</span> <span class="nav-text">如果想知道CPU的SIMD支持等级可以使用cpuid指令 ，或者直接使用cpuz软件查看。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8SIMD"><span class="nav-number">3.</span> <span class="nav-text">2.如何使用SIMD</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-SSE-x2F-AVX-Intrinsics%E4%BB%8B%E7%BB%8D"><span class="nav-number">4.</span> <span class="nav-text">3.SSE&#x2F;AVX Intrinsics介绍</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

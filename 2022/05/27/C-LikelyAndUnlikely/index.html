@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="流水线技术现代CPU为了提高执行指令执行的吞吐量，使用了流水线技术，它将每条指令分解为多步，让不同指令的各步操作重叠，从而实现若干条指令并行处理。在流水线中，一条指令的生命周期可能包括：  取指：将指令从存储器中读取出来，放入指令缓冲区中。 译码：对取出来的指令进行翻译 执行：知晓了指令内容，便可使用CPU中对应的计算单元执行该指令 访存：将数据从存储器读出，或写入存储器 写回：将指令的执行结果写">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++LikelyAndUnlikely">
+<meta property="og:url" content="http://example.com/2022/05/27/C-LikelyAndUnlikely/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="流水线技术现代CPU为了提高执行指令执行的吞吐量，使用了流水线技术，它将每条指令分解为多步，让不同指令的各步操作重叠，从而实现若干条指令并行处理。在流水线中，一条指令的生命周期可能包括：  取指：将指令从存储器中读取出来，放入指令缓冲区中。 译码：对取出来的指令进行翻译 执行：知晓了指令内容，便可使用CPU中对应的计算单元执行该指令 访存：将数据从存储器读出，或写入存储器 写回：将指令的执行结果写">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic4.zhimg.com/80/v2-bda6685ab98c96b66767b207dff4c9a3_720w.jpg">
+<meta property="article:published_time" content="2022-05-27T11:46:08.000Z">
+<meta property="article:modified_time" content="2022-05-27T11:47:10.161Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic4.zhimg.com/80/v2-bda6685ab98c96b66767b207dff4c9a3_720w.jpg">
+
+<link rel="canonical" href="http://example.com/2022/05/27/C-LikelyAndUnlikely/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>C++LikelyAndUnlikely | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/27/C-LikelyAndUnlikely/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++LikelyAndUnlikely
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-27 19:46:08 / Modified: 19:47:10" itemprop="dateCreated datePublished" datetime="2022-05-27T19:46:08+08:00">2022-05-27</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="流水线技术"><a href="#流水线技术" class="headerlink" title="流水线技术"></a><strong>流水线技术</strong></h2><p>现代CPU为了提高执行指令执行的吞吐量，使用了流水线技术，它将每条指令分解为多步，让不同指令的各步操作重叠，从而实现若干条指令并行处理。在流水线中，一条指令的生命周期可能包括：</p>
+<ul>
+<li>取指：将指令从存储器中读取出来，放入指令缓冲区中。</li>
+<li>译码：对取出来的指令进行翻译</li>
+<li>执行：知晓了指令内容，便可使用CPU中对应的计算单元执行该指令</li>
+<li>访存：将数据从存储器读出，或写入存储器</li>
+<li>写回：将指令的执行结果写回到通用寄存器组</li>
+</ul>
+<p>流水线技术无法提升CPU执行单条指令的性能，但是可以通过相邻指令的并行化提高整体执行指令的吞吐量。</p>
+<h2 id="分支预测"><a href="#分支预测" class="headerlink" title="分支预测"></a><strong>分支预测</strong></h2><p>我们都知道，程序的控制流程基本可分为三种：顺序、分支和循环。对CPU流水线来说，顺序比较好处理，一条路往前趟就行了。但是当程序中有了分支结构之后，CPU无法确切知道到底应该取分支1中的D指令，还是分支二中的E指令。此时CPU会根据指令执行的上下文，猜测那一路分支应该被执行。预测的结果有两个，命中或者命不中。在前一种情况下，CPU流水线正常执行，不会被打断。在后一种情况下，需要CPU丢掉为跳转指令之后的所有指令所做的工作，再开始从正确位置处起始的指令去填充流水线，这会导致很严重的惩罚：大约20-40个时钟周期的浪费，导致程序性能的严重下降。</p>
+<p><img src="https://pic4.zhimg.com/80/v2-bda6685ab98c96b66767b207dff4c9a3_720w.jpg"></p>
+<h2 id="什么是likely和unlikely"><a href="#什么是likely和unlikely" class="headerlink" title="什么是likely和unlikely"></a><strong>什么是likely和unlikely</strong></h2><p>既然程序是我们程序员所写，在一些明确的场景下，我们应该比CPU和编译器更了解哪个分支条件更有可能被满足。我们是否可将这一先验知识告知编译器和CPU, 提高分支预测的准确率，从而减少CPU流水线分支预测错误带来的性能损失呢？答案是可以！它便是<code>likely</code>和<code>unlikely</code>。在Linux内核代码中，这两个宏的应用比比皆是。下面是他们的定义：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#define likely(x) __builtin_expect(!!(x), 1) </span><br><span class="line">#define unlikely(x) __builtin_expect(!!(x), 0)</span><br></pre></td></tr></table></figure>
+
+<p><code>likely</code>，用于修饰if&#x2F;else if分支，表示该分支的条件更有可能被满足。而<code>unlikely</code>与之相反</p>
+<p>以下为示例。<code>unlikely</code>修饰<code>argc &gt; 0</code>分支，表示该分支不太可能被满足。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;cstdio&gt;</span><br><span class="line"></span><br><span class="line">#define likely(x)       __builtin_expect(!!(x), 1)</span><br><span class="line">#define unlikely(x)     __builtin_expect(!!(x), 0)</span><br><span class="line"></span><br><span class="line">int main(int argc, char *argv[])</span><br><span class="line">&#123;</span><br><span class="line">    if (unlikely(argc &gt; 0)) &#123;</span><br><span class="line">        puts (&quot;Positive\n&quot;);</span><br><span class="line">    &#125; else</span><br><span class="line">    &#123;</span><br><span class="line">        puts (&quot;Zero or Negative\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="likely-x2F-unlikely的原理"><a href="#likely-x2F-unlikely的原理" class="headerlink" title="likely&#x2F;unlikely的原理"></a><strong>likely&#x2F;unlikely的原理</strong></h2><p>接下来，我们从汇编指令分析likely&#x2F;unlikely到底是如何起作用的?</p>
+<p>首先我们将上述代码中的<code>unlikely</code>去掉，然后反汇编，作为对照组</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;cstdio&gt;</span><br><span class="line"></span><br><span class="line">#define likely(x)       __builtin_expect(!!(x), 1)</span><br><span class="line">#define unlikely(x)     __builtin_expect(!!(x), 0)</span><br><span class="line"></span><br><span class="line">int main(int argc, char *argv[])</span><br><span class="line">&#123;</span><br><span class="line">    if (argc &gt; 0) &#123;</span><br><span class="line">        puts (&quot;Positive\n&quot;);</span><br><span class="line">    &#125; else</span><br><span class="line">    &#123;</span><br><span class="line">        puts (&quot;Zero or Negative\n&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>汇编如下，我们看到，if分支中的指令被编译器放置于分支跳转指令jle相邻的位置，即CPU流水线在遇到<code>jle</code>指令所代表的的’岔路口’时，更倾向于走if分支</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">.LC0:</span><br><span class="line">        .string &quot;Positive\n&quot;</span><br><span class="line">.LC1:</span><br><span class="line">        .string &quot;Zero or Negative\n&quot;</span><br><span class="line">main:</span><br><span class="line">        sub     rsp, 8</span><br><span class="line">        test    edi, edi                </span><br><span class="line">        jle     .L2                     ; 如果argc &lt;= 0, 跳转到L2</span><br><span class="line">        mov     edi, OFFSET FLAT:.LC0   ; 如果argc &gt; 0, 从这里执行</span><br><span class="line">        call    puts</span><br><span class="line">.L3:</span><br><span class="line">        xor     eax, eax</span><br><span class="line">        add     rsp, 8</span><br><span class="line">        ret</span><br><span class="line">.L2:</span><br><span class="line">        mov     edi, OFFSET FLAT:.LC1</span><br><span class="line">        call    puts</span><br><span class="line">        jmp     .L3</span><br></pre></td></tr></table></figure>
+
+<p>接着我们在if分支中加上unlikely, 反汇编如下。这里的情况正好与对照组相反，if分支下的指令被编译器放置于远离跳转指令<code>jg</code>的位置。这意味着CPU此时更倾向于走else分支。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">.LC0:</span><br><span class="line">        .string &quot;Positive\n&quot;</span><br><span class="line">.LC1:</span><br><span class="line">        .string &quot;Zero or Negative\n&quot;</span><br><span class="line">main:</span><br><span class="line">        sub     rsp, 8</span><br><span class="line">        test    edi, edi</span><br><span class="line">        jg      .L6</span><br><span class="line">        mov     edi, OFFSET FLAT:.LC1</span><br><span class="line">        call    puts</span><br><span class="line">.L3:</span><br><span class="line">        xor     eax, eax</span><br><span class="line">        add     rsp, 8</span><br><span class="line">        ret</span><br><span class="line">.L6:</span><br><span class="line">        mov     edi, OFFSET FLAT:.LC0</span><br><span class="line">        call    puts</span><br><span class="line">        jmp     .L3</span><br></pre></td></tr></table></figure>
+
+<p>因此，通过对分支条件使用<code>likely</code>和<code>unlikely</code>，我们可给编译器一种暗示，即该分支条件被满足的概率比较大或比较小。而编译器利用这一信息优化其机器指令，从而最大限度减少CPU分支预测失败带来的惩罚。</p>
+<h2 id="likely-x2F-unlikely的适用条件"><a href="#likely-x2F-unlikely的适用条件" class="headerlink" title="likely&#x2F;unlikely的适用条件"></a><strong>likely&#x2F;unlikely的适用条件</strong></h2><p>CPU有自带的分支预测器，在大多数场景下效果不错。因此在分支发生概率严重倾斜、追求极致性能的场景下，使用<code>likely/unlikely</code>才具有较大意义。</p>
+<h2 id="C-20中的likely-x2F-unlikely"><a href="#C-20中的likely-x2F-unlikely" class="headerlink" title="C++20中的likely&#x2F;unlikely"></a><strong>C++20中的likely&#x2F;unlikely</strong></h2><p>C++20之前的，<code>likely</code>和<code>unlikely</code>只不过是一对自定义的宏。而C++20中正式将<code>likely</code>和<code>unlikely</code>确定为属性关键字。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">int foo(int i) &#123;</span><br><span class="line">    switch(i) &#123;</span><br><span class="line">               case 1: handle1();</span><br><span class="line">                       break;</span><br><span class="line">    [[likely]] case 2: handle2();</span><br><span class="line">                       break;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>相关提案见：<a href="https://link.zhihu.com/?target=http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0479r0.html">http://www.open-std.org/jtc1/sc22/</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/22/ARM-SVE/" rel="prev" title="ARM_SVE">
+      <i class="fa fa-chevron-left"></i> ARM_SVE
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/05/27/simd/" rel="next" title="simd">
+      simd <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%8A%80%E6%9C%AF"><span class="nav-number">1.</span> <span class="nav-text">流水线技术</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E6%94%AF%E9%A2%84%E6%B5%8B"><span class="nav-number">2.</span> <span class="nav-text">分支预测</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFlikely%E5%92%8Cunlikely"><span class="nav-number">3.</span> <span class="nav-text">什么是likely和unlikely</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#likely-x2F-unlikely%E7%9A%84%E5%8E%9F%E7%90%86"><span class="nav-number">4.</span> <span class="nav-text">likely&#x2F;unlikely的原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#likely-x2F-unlikely%E7%9A%84%E9%80%82%E7%94%A8%E6%9D%A1%E4%BB%B6"><span class="nav-number">5.</span> <span class="nav-text">likely&#x2F;unlikely的适用条件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#C-20%E4%B8%AD%E7%9A%84likely-x2F-unlikely"><span class="nav-number">6.</span> <span class="nav-text">C++20中的likely&#x2F;unlikely</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
