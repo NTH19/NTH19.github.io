@@ -160,6 +160,331 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/30/C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/05/30/C/" class="post-title-link" itemprop="url">C++</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-30 11:26:46 / Modified: 11:27:20" itemprop="dateCreated datePublished" datetime="2022-05-30T11:26:46+08:00">2022-05-30</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>作者：流左沙<br>链接：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/346417618">https://zhuanlan.zhihu.com/p/346417618</a><br>来源：知乎<br>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。  </p>
+<p>本文为《深度探索C++对象模型》笔记，简要大纲如下，预计看完需要 10 分钟左右：</p>
+<p>1、对象模型</p>
+<p>1.1、简单对象模型</p>
+<p>1.2、表格驱动数据模型</p>
+<p>1.3、c++ 对象模型</p>
+<p>1.3.1、类对象中的 string 类型</p>
+<p>1.3.2、多态与切割</p>
+<p>2、default constructor</p>
+<p>2.1、copy constructor</p>
+<p>2.1.1、bitwise copy</p>
+<p>2.2、NRV - named return value 优化</p>
+<p>2.3、initialization list 和 constructor</p>
+<p>2.4、constructor 的扩充</p>
+<p>2.5、constructor 的执行顺序</p>
+<p>2.5.1、vptr 必须被设立的情况</p>
+<p>2.6、destructor</p>
+<p>2.7、临时对象</p>
+<p>3、empty virtual base class optimism</p>
+<p>4、指针存取和对象存取 members 的差异</p>
+<p>4.1、static members</p>
+<p>4.1.1、命名冲突</p>
+<p>4.2、class members</p>
+<p>4.2.1、多重继承</p>
+<p>4.3、dynamic_cast</p>
+<p>5、new &amp; delete</p>
+<p>5.1、野指针</p>
+<p>5.2、继承类 delete 的问题</p>
+<p>5.3、placement operator new</p>
+<p>6、template</p>
+<h2 id="1、对象模型"><a href="#1、对象模型" class="headerlink" title="1、对象模型"></a>1、对象模型</h2><h2 id="1-1、简单对象模型"><a href="#1-1、简单对象模型" class="headerlink" title="1.1、简单对象模型"></a>1.1、简单对象模型</h2><p><img src="https://pic4.zhimg.com/v2-77fc1d12af959990f0f3b5a4c70bef9b_b.jpg"></p>
+<p>一个对象是一系列的 slot，每个 slot 指向按顺序声明的 member。</p>
+<p>大小为：指针大小 * member 个数</p>
+<h2 id="1-2、表格驱动数据模型"><a href="#1-2、表格驱动数据模型" class="headerlink" title="1.2、表格驱动数据模型"></a>1.2、表格驱动数据模型</h2><p><img src="https://pic2.zhimg.com/v2-4ec5c05bee78535a344f55bee62bf919_b.jpg"></p>
+<p>数据与函数分离。object 为指向两表的两个指针。</p>
+<h2 id="1-3、c-对象模型"><a href="#1-3、c-对象模型" class="headerlink" title="1.3、c++ 对象模型"></a>1.3、c++ 对象模型</h2><p><img src="https://pic2.zhimg.com/v2-97a6ae64fbbe6c0405e4e9209419f7a9_b.jpg"></p>
+<p>nonstatic data members 置于 object 内，而 static data&#x2F;function 和 nonstatic function 置于其外。</p>
+<p>virtual function 采用 vtbl(virtual table) 存储，object 内用 vptr(virtual pointer) 指向 vtbl。</p>
+<p>如果用到 RTTI 的功能，其信息也被放到 vtbl 之中。</p>
+<h3 id="1-3-1、类对象中的-string-类型"><a href="#1-3-1、类对象中的-string-类型" class="headerlink" title="1.3.1、类对象中的 string 类型"></a>1.3.1、类对象中的 string 类型</h3><p><img src="https://pic4.zhimg.com/v2-e154e66ff7863af466278e4796f50433_b.jpg"></p>
+<p>传统的 string 会存储它的长度和字符指针(这里不考虑短串优化)。</p>
+<h3 id="1-3-2、多态与切割"><a href="#1-3-2、多态与切割" class="headerlink" title="1.3.2、多态与切割"></a>1.3.2、多态与切割</h3><p><img src="https://pic4.zhimg.com/v2-e5aba96b8c378ed008d162fef7c5a6cb_b.jpg"></p>
+<p>c++ 通过 class 的 pointer 和 reference 实现多态，不会产生与类型有关的内存委托操作，会收到改变的，只有它们指向的内存的“大小和内容解释方式”。</p>
+<p>像对 object 的直接存取操作可能会引起切割 (把一个大的 derived 塞进 base 的内存)。</p>
+<h2 id="2、default-constructor"><a href="#2、default-constructor" class="headerlink" title="2、default constructor"></a>2、default constructor</h2><p>当编译器需要的时候，会为类合成一个 default constructor，但这个被隐式声明的默认构造函数是不太好的。</p>
+<p>如果一个类没有任何 constructor，但它内含一个 member object，而后者有默认构造函数，那编译器会为该类合成一个默认构造函数。</p>
+<p>被合成的默认构造函数只满足编译器的需要，而不是程序员的需要。如：类里的指针类型的成员。</p>
+<p><strong>不同编译模块如何避免合成生成了多个默认构造函数？</strong></p>
+<p>解决方法是以 inline 的方式合成，inline 函数具有静态链接，不会被文件以外看到。如果函数太复杂，会合成一个 explicit non-inline static 实例。</p>
+<p><strong>有多个 member objects 要求初始化怎么办？</strong></p>
+<p>按 members 在 class 里的声明顺序进行初始化。</p>
+<p>如果写了一个<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">构造函数</a>，而没有把类实例成员变量初始化的话，这个构造函数会被编译器扩充从而把这些类实例成员变量也初始化了。</p>
+<p>为什么要扩充我们写的构造函数，而不新建一个构造函数？恰恰就是因为我们写的构造函数存在，新建会让这个函数里的代码实现丢失，扩充省事。</p>
+<p><strong>那带有虚函数的类的默认构造函数会有什么不同吗？</strong></p>
+<p>带有虚函数的类生成的默认构造函数会把虚表地址赋给类指针，但虚函数所需要的 vtable 和与其对应的 vpointer 都是在编译时期生成的，只是对于虚函数的调用生成了通过虚表调用的运行时的指令。</p>
+<p><strong>如果自身的 member 是 class object，同样也没有写默认构造函数呢？</strong></p>
+<p>当需要初始化时，编译器同样会为其合成默认构造函数，并以递归的形式进行初始化。</p>
+<h2 id="2-1、copy-constructor"><a href="#2-1、copy-constructor" class="headerlink" title="2.1、copy constructor"></a>2.1、copy constructor</h2><p>同样如果有需要，拷贝构造函数也会被合成。如整数、数组、指针等等的 member 都会被复制。</p>
+<p>就连带虚函数的类的 vptr 也会同样复制，同样指向其虚表。</p>
+<p>当发生类型切割(子类赋值给基类)时，编译器也足够机智处理好 vptr：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">derived d;</span><br><span class="line">base b = d; <span class="comment">// 类型切割，但 b 的 vptr 指向的是 base 的虚表，不会复制 d 的</span></span><br><span class="line">derived d2 = d; <span class="comment">// 直接复制 d 的 vptr</span></span><br></pre></td></tr></table></figure>
+
+<p>加入一个书中没有提醒：<strong>调用的是拷贝构造函数还是赋值运算符，主要是看是否有新的对象实例产生。如果产生了新的对象实例，那调用的就是拷贝构造函数；如果没有，那就是对已有的对象赋值，调用的是赋值运算符</strong>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">derived d;</span><br><span class="line">derived d2 = d; <span class="comment">// 调用拷贝构造函数</span></span><br><span class="line">base b = d; <span class="comment">// 调用拷贝构造函数</span></span><br><span class="line">b = d2; <span class="comment">// 调用赋值运算符</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-1-1、bitwise-copy"><a href="#2-1-1、bitwise-copy" class="headerlink" title="2.1.1、bitwise copy"></a>2.1.1、bitwise copy</h3><p>Memberwise copy(深拷贝): 在初始化一个对象期间，基类的构造函数被调用，成员变量被调用，如果它们有构造函数的时候，它们的构造函数被调用，这个过程是一个递归的过程。</p>
+<p>Bitwise copy(浅拷贝): 原内存拷贝。例子：给定一个对象 object，它的类型是 class Base。对象 object 占用 10 字节的内存，地址从 0x0 到 0x9。如果还有一个对象 objectTwo ，类型也是 class Base。那么执行 objectTwo &#x3D; object; 如果使用 Bitwise 拷贝语义,那么将会拷贝从 0x0 到 0x9 的数据到 objectTwo 的内存地址，也就是说 Bitwise 是字节到字节的拷贝。</p>
+<p>只有在默认行为所导致的语意不安全或不正确时，我们才需要设计一个 copy assignment operator。默认的 memberwise copy 行为对于我们的 Point object 不安全吗? 不正确吗? 不，由于坐标都内含数值，所以不会发生”别名化（aliasing）”或”内存泄漏（memory leak）”。如果我们自己提供一个 copy assignment operator，程序反倒会执行得比较慢。</p>
+<p>如果我们不对 Point 供应一个 copy assignment operator，而光是仰赖默认的 memberwise copy，编译器会产生出一个实例吗? 这个答案和 copy constructor 的情况一样∶实际上不会! 由于此 class 已经有了 bitwise copy 语意，所以 implicit copy assignment operator 被视为毫无用处，也根本不会被合成出来。</p>
+<p>一个 cass 对于默认的 copy assignment operator，在以下情况，不会表现出 bitwise copy 语意∶</p>
+<ol>
+<li><p>当 class 内含一个 member object，而其 class 有一个 copy assignment operator 时。  </p>
+</li>
+<li><p>当一个 class 的 base class 有一个 copy assignment operator 时。  </p>
+</li>
+<li><p>当一个 class 声明了任何 virtual functions（我们一定不要拷贝右端 class object 的 vptr 地址，因为它可能是一个 derived class object）时。  </p>
+</li>
+<li><p>当 class 继承自一个 virtual base class（不论此 base class 有没有 copy operator）时。</p>
+</li>
+</ol>
+<h2 id="2-2、NRV-named-return-value-优化"><a href="#2-2、NRV-named-return-value-优化" class="headerlink" title="2.2、NRV - named return value 优化"></a>2.2、NRV - named return value 优化</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">X <span class="title">bar</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    X xx;</span><br><span class="line">    <span class="comment">//……处理 xx </span></span><br><span class="line">    <span class="keyword">return</span> xx;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 编译器对上面的操作进行 NRV 优化之后如下：</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">bar</span><span class="params">( X &amp;__result )</span></span>&#123;</span><br><span class="line">    <span class="comment">// default constructor 被调用</span></span><br><span class="line">    <span class="comment">// C++ 伪码</span></span><br><span class="line">    __result.X::<span class="built_in">X</span>();</span><br><span class="line">    <span class="comment">//……直接处理 __result </span></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 为什么会这样替换？因为一个赋值语句会被拆分，如下：</span></span><br><span class="line">X a = <span class="built_in">bar</span>();</span><br><span class="line"><span class="comment">// 拆分</span></span><br><span class="line">X a;</span><br><span class="line"><span class="built_in">bar</span>(a);</span><br></pre></td></tr></table></figure>
+
+<p>虽然 NRV 优化提供了重要的效率改善，但它还是饱受批评。</p>
+<p>其中一个原因是，优化由编译器默默完成，而它是否真的被完成，并不十分清楚（因为很少有编译器会说明其实现程度，或是否实现）。</p>
+<p>第二个原因是，一旦函数变得比较复杂，优化也就变得比较难以施行。</p>
+<p>第三个原因是，它改变了程序员所认为会发生的行为，拷贝构造函数被抑制了。</p>
+<h2 id="2-3、initialization-list-和-constructor"><a href="#2-3、initialization-list-和-constructor" class="headerlink" title="2.3、initialization list 和 constructor"></a>2.3、initialization list 和 constructor</h2><p>必须使用 initialization list 的情况：</p>
+<p>1、当初始化一个 reference member 时;</p>
+<p>2、当初始化一个 const member 时;</p>
+<p>3、当调用一个 base class 的 constructor，而它拥有一组参数时;</p>
+<p>4、当调用一个 member class 的 constructor，而它拥有一组参数时。</p>
+<p>编译器会一一操作 initialization list，以适当顺序在 constructor 之内安插初始化操作，并且在任何explicit user code 之前。</p>
+<p>值得注意的是：initialization list 的 member 初始化顺序是由类中 member 的声明顺序决定的。</p>
+<h2 id="2-4、constructor-的扩充"><a href="#2-4、constructor-的扩充" class="headerlink" title="2.4、constructor 的扩充"></a>2.4、constructor 的扩充</h2><p>Constructor 可能内含大量的隐藏码，因为编译器会扩充每一个 constructor，扩充程度视 class T 的继承体系而定。一般而言<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E7%BC%96%E8%AF%91%E5%99%A8&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">编译器</a>所做的扩充操作大约如下∶</p>
+<ol>
+<li><p>记录在 <a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=member+initialization+list&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">member initialization list</a> 中的 data members 初始化操作会被放进 constructor 的函数本体，并以 members 的声明顺序为顺序。  </p>
+</li>
+<li><p>如果有一个 member 并没有出现在 member initialization list 之中，但它有一个 default constructor，那么该 default constructor 必须被调用。  </p>
+</li>
+<li><p>在那之前，如果 class object 有 virtual table pointer（s），它（们）必须被设定初值，指向适当的 virtual table（s）。  </p>
+</li>
+<li><p>在那之前，所有上一层的 base class constructors 必须被调用，以 base class 的声明顺序为顺序（与 member initialization list 中的顺序没关联）  </p>
+</li>
+<li><p>在那之前，所有 virtual base class constructors 必须被调用，从左到右，从最深到最浅</p>
+</li>
+</ol>
+<h2 id="2-5、constructor-的执行顺序"><a href="#2-5、constructor-的执行顺序" class="headerlink" title="2.5、constructor 的执行顺序"></a>2.5、constructor 的执行顺序</h2><p>对于对象而言，”个体发生学”概括了”系统发生学”。constructor 的执行算法通常如下∶</p>
+<ol>
+<li><p>在 derived class constructor 中，”所有 virtual base classes “ 及 “上一层 base class “ 的 constructors 会被调用。  </p>
+</li>
+<li><p>上述完成之后，对象的 vptr（s）被初始化，指向相关的 virtual table（s）。  </p>
+</li>
+<li><p>如果有 member initialization list 的话，将在 constructor 体内扩展开来。这必须在 vptr 被设定之后才做，以免有一个 virtual member function 被调用。  </p>
+</li>
+<li><p>最后，执行程序员所提供的代码。</p>
+</li>
+</ol>
+<h3 id="2-5-1、vptr-必须被设立的情况"><a href="#2-5-1、vptr-必须被设立的情况" class="headerlink" title="2.5.1、vptr 必须被设立的情况"></a>2.5.1、vptr 必须被设立的情况</h3><p>下面是 vptr 必须被设定的两种情况∶</p>
+<ol>
+<li><p>当一个完整的对象被构造起来时。如果我们声明一个 Point 对象，则 Point constructor 必须设定其 vptr。  </p>
+</li>
+<li><p>当一个 subobject constructor 调用了一个 virtual function（不论是直接调用或间接调用）时。</p>
+</li>
+</ol>
+<h2 id="2-6、destructor"><a href="#2-6、destructor" class="headerlink" title="2.6、destructor"></a>2.6、destructor</h2><p>如果 class 没有定义 destructor，那么只有在 class 内含的 member object（抑或 class 自己的 base class）拥有 destructor 的情况下，编译器才会自动合成出一个来。否则，destructor 被视为不需要，也就不需被合成（当然更不需要被调用）。</p>
+<p>你应该拒绝那种被称为”对称策略”的奇怪想法∶”你已经定义了一个 constructor，所以你以为提供一个 destructor 也是天经地义的事”。事实上，你应该因为”需要”而非”感觉”来提供 destuctor，更不要因为你不确定是否需要一个 destructor，于是就提供它。</p>
+<p>就像 constructor 一样，目前对于 destructor 的一种最佳实现策略就是维护两份 destructor 实例∶</p>
+<ol>
+<li><p>一个 complete object 实例，总是设定好 vptr（s），并调用 virtual base class destructors。  </p>
+</li>
+<li><p>一个 base class subobject 实例; 除非在 destructor 函数中调用一个 virtual function，否则它绝不会调用 virtual base class destructors 并设定 vptr。</p>
+</li>
+</ol>
+<h2 id="2-7、临时对象"><a href="#2-7、临时对象" class="headerlink" title="2.7、临时对象"></a>2.7、临时对象</h2><p>如果我们有一个函数，形式如下∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T <span class="keyword">operator</span>+(<span class="type">const</span> T&amp;, <span class="type">const</span> T&amp;);</span><br></pre></td></tr></table></figure>
+
+<p>以及两个 T objects，a 和 b，那么∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a + b;</span><br></pre></td></tr></table></figure>
+
+<p>可能会导致一个临时性对象，以放置传回的对象。是否会导致一个临时性对象，视编译器的进取性（aggressiveness）以及上述操作发生时的程序语境（program context）而定。例如下面这个片段∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">T a, b; </span><br><span class="line">T c = a + b;</span><br></pre></td></tr></table></figure>
+
+<p>编译器会产生一个临时性对象，放置 a+b 的结果，然后再使用 T 的 copy constuctor，把该临时性对象当做 c 的初始值。然而比较更可能的转换是直接以拷贝构造的方式，将 a+b 的值放到 c 中，于是就不需要临时性对象，以及对其 constructor 和 destructor 的调用了。</p>
+<p>理论上，C++ Standard 允许编译器厂商有完全的自由度。但实际上，由于市场的竞争，几乎保证任何表达式（expression）如果有这种形式∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T c = a + b;</span><br></pre></td></tr></table></figure>
+
+<p>而其中的加法运算符被定义为∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T <span class="keyword">operator</span>+(<span class="type">const</span> T&amp;, <span class="type">const</span> T&amp;);</span><br></pre></td></tr></table></figure>
+
+<p>或</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T T::<span class="keyword">operator</span>+(<span class="type">const</span> T&amp;);</span><br></pre></td></tr></table></figure>
+
+<p>那么实现时根本不产生一个临时性对象。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">bool</span> verbose;</span><br><span class="line">String progNameVersion =</span><br><span class="line">    !verbose ? <span class="number">0</span> : progName + progVersion;</span><br></pre></td></tr></table></figure>
+
+<p>其中 progName 和 progVersion 都是 String objects。这时候会生出一个临时对象，放置加法运算符的运算结果∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">String <span class="keyword">operator</span>+(<span class="type">const</span> String&amp;, <span class="type">const</span> String&amp;);</span><br></pre></td></tr></table></figure>
+
+<p>临时对象必须根据对 verbose 的测试结果，有条件地析构。在临时对象的生命规则之下，它应该在完整的 “?∶表达式” 结束评估之后尽快被摧毁。然而，如果 progNameVersion 的初始化需要调用一个 copy constructor∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C++ 伪码</span></span><br><span class="line">progNameversion.String::<span class="built_in">String</span>(temp);</span><br></pre></td></tr></table></figure>
+
+<p>那么临时性对象的析构（在 “?∶完整表达式” 之后）当然就不是我们所期望的。</p>
+<p>C++ Standard 要求说∶</p>
+<p>……凡持有<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E8%A1%A8%E8%BE%BE%E5%BC%8F&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">表达式</a>执行结果的临时性对象，应该存留到object的初始化操作完成为止。</p>
+<p>但还是要避免赋给一个指针的操作。</p>
+<h2 id="3、empty-virtual-base-class-optimism"><a href="#3、empty-virtual-base-class-optimism" class="headerlink" title="3、empty virtual base class optimism"></a>3、empty virtual base class optimism</h2><p><img src="https://pic4.zhimg.com/v2-b2e7cefacfb6ce830bc6516adb65f8a7_b.jpg"></p>
+<p>empty virtual base class 所占的 1 字节内存应该被优化掉</p>
+<p><img src="https://pic1.zhimg.com/v2-f8efec3ebfd37249a3c7b6dfb58a6650_b.jpg"></p>
+<h2 id="4、指针存取和对象存取-members-的差异"><a href="#4、指针存取和对象存取-members-的差异" class="headerlink" title="4、指针存取和对象存取 members 的差异"></a>4、指针存取和对象存取 members 的差异</h2><h2 id="4-1、static-members"><a href="#4-1、static-members" class="headerlink" title="4.1、static members"></a>4.1、static members</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span>&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">static</span> <span class="type">int</span> c;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    A a, *p = &amp;a;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%d, %d, %d&quot;</span>, A::c, a.c, p-&gt;c);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从指令执行的观点来看，这是 C++语言中”通过一个指针和通过一个对象来存取 member，结论完全相同”的唯一一种情况。</p>
+<p>“经由 member selection operators（译注∶也就是”.”运算符）对一个static data member进行存取操作”只是文法上的一种便宜行事而已。</p>
+<p>static member 其实并不在 class object之中，因此存取 static members 并不需要通过 class object。</p>
+<h3 id="4-1-1、命名冲突"><a href="#4-1-1、命名冲突" class="headerlink" title="4.1.1、命名冲突"></a>4.1.1、命名冲突</h3><p>如果有两个classes，每一个都声明了一个 static member freeList，那么当它们都被放在程序的 data segment 时，就会导致名称冲突。</p>
+<p>编译器的解决方法是暗中对每一个 static data member 编码（这种手法有个很美的名称∶ name-mangling ），以获得一个独一无二的程序识别代码。有多少个编译器，就有多少种 name-mangling做法!通常不外乎是表格啦、文法措辞啦等。</p>
+<p>任何 name-mangling 做法都有两个重点∶</p>
+<p>1．一个算法，推导出独一无二的名称。</p>
+<ol>
+<li>万一编译系统（或环境工具）必须和使用者交谈，那些独一无二的名称可以轻易被推导回到原来的名称。</li>
+</ol>
+<h2 id="4-2、class-members"><a href="#4-2、class-members" class="headerlink" title="4.2、class members"></a>4.2、class members</h2><p>欲对一个 nonstatic data member 进行存取操作，编译器需要把 class object 的起始地址加上 data member 的偏移位置（offset）。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">origin.x = 0.0; </span><br><span class="line">pt-&gt;x = 0.0;</span><br></pre></td></tr></table></figure>
+
+<p>“从 origin 存取”和”从 pt 存取”有什么重大的差异?</p>
+<p>答案是”当 Poin3d 是一个 derived class，而其继承结构中有一个 virtual base cass，并且被存取的 member（如本例的 x ）是一个从该 vitual base class 继承而来的 member “时，就会有重大的差异。</p>
+<p>这时候我们不能够说 pt 必然指向哪一种 class type（因此，我们也就不知道编译时期这个 member 真正的 offset 位置），所以这个存取操作必须延迟至执行期，经由一个额外的间接导引，才能够解决。</p>
+<p>但如果使用 origin，就不会有这些问题，其类型无疑是 Point3d class，而即使它继承自 virtual base class，members 的 offset 位置也在编译时期就固定了。一个积极进取的编译器甚至可以静态地经由 origin 就解决掉对 x 的存取。</p>
+<p>解释一下，即这个变量，无论实例是基类还是子类，其相同的 member 的 offset 都应该是放置在一样的地方。</p>
+<p>所以如果基类存在 padding，子类的 members 并不会接着写在 padding 的部分里，而是写在 padding 之后。</p>
+<p>同时也是为了防止拷贝时把子类的 members 覆盖了，像下图这种是我们不想要的情况。</p>
+<p><img src="https://pic1.zhimg.com/v2-c7be15f47a23f633c636516b7ee32384_b.jpg"></p>
+<h3 id="4-2-1、多重继承"><a href="#4-2-1、多重继承" class="headerlink" title="4.2.1、多重继承"></a>4.2.1、多重继承</h3><p><img src="https://pic2.zhimg.com/v2-1fa358835388324c4de5c9911b640d35_b.jpg"></p>
+<p>某些编译器（例如 MetaWare）设计了一种优化技术，只要第二个（或后继）base class 声明了一个 virtual function，而第一个base class 没有，就把多个base classes 的顺序调换。这样可以在 derived class object 中少产生一个 vptr 。这项优化技术并未得到全球各厂商的认可，因此并不普及。</p>
+<h2 id="4-3、dynamic-cast"><a href="#4-3、dynamic-cast" class="headerlink" title="4.3、dynamic_cast"></a>4.3、dynamic_cast</h2><p>dynamic_cast 运算符可以在执行期决定真正的类型。如果 downcast 是安全的（也就是说，如果 base type pointer 指向一个 derived class object），这个<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E8%BF%90%E7%AE%97%E7%AC%A6&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">运算符</a>会传回被适当转换过的指针。如果 downcast 不是安全的，这个运算符会传回 0。</p>
+<p>什么是 dnamic_cast 的真正成本呢? pfct 的一个类型描述器会被编译器产生出来。由 pt 所指向的 class object 类型描述器必须在执行期通过 vptr 取得。下面就是可能的转换：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 取得 pt 的类型描述器</span></span><br><span class="line">((type_info*)(pt-&gt;vptr[ <span class="number">0</span> ]))-&gt;_type_descriptor;</span><br></pre></td></tr></table></figure>
+
+<p>type_info 是 C++ Standard 所定义的类型描述器的 class 名称，该 class 中放置着待索求的类型信息。virtual table 的第一个 slot 内含 type_info object 的地址；此 type_info object 与 pt 所指的 classtype 有关。这两个类型描述器被交给一个 runtime library 函数，比较之后告诉我们是否吻合。很显然这比 static_cast 昂贵得多，但却安全得多。</p>
+<p>虽然我早说过RTT只适用于多态类（polymorphic classes），事实上 type_info objects 也适用于内建类型，以及非多态的使用者自定类型。这对于 exception handling 的支持是有必要的。例如∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> ex_errno;</span><br><span class="line"><span class="keyword">throw</span> ex_errno;</span><br></pre></td></tr></table></figure>
+
+<p>其中 int 类型也有它自己的 type_info object。下面就是使用方法∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> *ptr;</span><br><span class="line"><span class="keyword">if</span> (<span class="built_in">typeid</span>(ptr) == <span class="built_in">typeid</span>(<span class="type">int</span>*))</span><br></pre></td></tr></table></figure>
+
+<p>在程序中使用 typeid（expression），像这样：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> ival;</span><br><span class="line"><span class="built_in">typeid</span>( ival );</span><br></pre></td></tr></table></figure>
+
+<p>或是使用 typeid（type），像这样∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">typeid</span>( <span class="type">double</span> );</span><br></pre></td></tr></table></figure>
+
+<p>会传回一个 const type_info&amp;。这与先前使用多态类型（polymophic types）的差异在于，这时候的 type_info object 是静态取得，而非<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%89%A7%E8%A1%8C%E6%9C%9F&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22article%22,%22sourceId%22:%22346417618%22%7D">执行期</a>取得。一般的实现策略是在需要时才产生 type_info object，而非程序一开头就产生之。</p>
+<h2 id="5、new-amp-delete"><a href="#5、new-amp-delete" class="headerlink" title="5、new &amp; delete"></a>5、new &amp; delete</h2><h2 id="5-1、野指针"><a href="#5-1、野指针" class="headerlink" title="5.1、野指针"></a>5.1、野指针</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 喔欧∶ 没有良好的定义，但是合法 </span></span><br><span class="line"><span class="keyword">if</span> (pi &amp;&amp; *pi == <span class="number">5</span> )...</span><br><span class="line"><span class="comment">// 虽然没有良好的定义，但是可能（也可能不）被评估为真。</span></span><br><span class="line"><span class="comment">// 这是因为对于 pi 所指向之内存的变更或再使用，可能（也可能不）会发生。</span></span><br></pre></td></tr></table></figure>
+
+<p>pi 所指对象的生命会因 delete 而结束。</p>
+<p>所以后继任何对 pi 的参考操作就不再保证有良好的行为，并因此被视为是一种不好的程序风格。然而，把 pi 继续当做一个指针来用，仍然是可以的（虽然其使用受到限制）。</p>
+<p>在这里，使用指针 pi，和使用 pi 所指的对象，其差别在于哪一个的生命已经结束了。虽然该地址上的对象不再合法，地址本身却仍然代表一个合法的程序空间。因此 pi 能够继续被使用，但只能在受限制的情况下，很像一个 void* 指针的情况。</p>
+<h2 id="5-2、继承类-delete-的问题"><a href="#5-2、继承类-delete-的问题" class="headerlink" title="5.2、继承类 delete 的问题"></a>5.2、继承类 delete 的问题</h2><p>最好就是避免以一个 base class 指针指向一个 derived class objects 所组成的数组</p>
+<p>——如果 derived clss object 比其 base 大的话（译注∶通常如此）。</p>
+<p>如果你真的一定得这样写程序，解决之道在于程序员层面，而非语言层面∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> ( <span class="type">int</span> ix = <span class="number">0</span>; ix &lt; elem_count; ++ix ) &#123;</span><br><span class="line">    Child *p = &amp;((Child*)ptr)[ix]; </span><br><span class="line">    <span class="keyword">delete</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>基本上，程序员必须迭代走过整个数组，把 delete 运算符实施于每一个元素身上。以此方式，调用操作将是 virtual，因此，Child 和 Father 的 destructor 都会施行于数组中的每一个 objects 身上。</p>
+<h2 id="5-3、placement-operator-new"><a href="#5-3、placement-operator-new" class="headerlink" title="5.3、placement operator new"></a>5.3、placement operator new</h2><p>有一个预先定义好的重载的（overloaded）new 运算符，称为 placement operator new。它需要第二个参数，类型为 void*。调用方式如下∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Point2w *ptw = <span class="built_in">new</span>( arena ) Point2w;</span><br></pre></td></tr></table></figure>
+
+<p>其中 arena 指向内存中的一个区块，用以放置新产生出来的 Point2w object。这个预先定义好的 placement operator new 的实现方法简直是出乎意料的平凡。它只要将”获得的指针（译注∶ 上例的 arena ）”所指的地址传回即可∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span>* <span class="keyword">operator</span> <span class="title">new</span><span class="params">(<span class="type">size_t</span>, <span class="type">void</span>* p)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果它的作用只是传回其第二个参数，那么它有什么价值呢?也就是说，为什么不简单地这么写算了（这不就是实际所发生的操作吗）∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Point2w *ptw = (Point2w*) arena;</span><br></pre></td></tr></table></figure>
+
+<p>Placement new operator 所扩充的另一半是将 Point2w constructor 自动实施于 arena 所指的地址上。</p>
+<p>这正是使 placement operator new 威力如此强大的原因。这一份代码决定 objects 被放置在哪里; 编译系统保证 object 的 constructor 会施行于其上。</p>
+<p>然而却有一个轻微的不良行为。你看得出来吗?下面是一个有问题的程序片段∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 让 arena 成为全局性定义 </span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">fooBar</span> <span class="params">()</span> </span>&#123;</span><br><span class="line">    Point2w *p2w = <span class="built_in">new</span> (arena) Point2w;</span><br><span class="line">    <span class="comment">//... do it ...</span></span><br><span class="line">    <span class="comment">// ...now manipulate a new object ... </span></span><br><span class="line">    p2w = <span class="built_in">new</span> (arena) Point2w;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果 placement operator 在原已存在的一个 object 上构造新的 object，而该既存的 object 有个 destuctor，这个 destructor 并不会被调用。调用该 destructor 的方法之一是将那个指针 delete 掉。不过在此例中如果你像下面这样做，绝对是个错误∶</p>
+<p>&#x2F;&#x2F; 以下并不是实施 destructor 的正确方法</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">delete</span> p2w;</span><br><span class="line">p2w = <span class="built_in">new</span> (arena) Point2w;</span><br></pre></td></tr></table></figure>
+
+<p>是的，delete 运算符会发生作用，这的确是我们所期待的。但是它也会释放由 p2w 所指的内存，这却不是我们所希望的，因为下一个指令就要用到 p2w 了。因此，我们应该显式地调用 destuctor 并保留存储空间以便再使用∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 施行 destructor 的正确方法 </span></span><br><span class="line">p2w-&gt;~Point2w;</span><br><span class="line">p2w= <span class="built_in">new</span> (arena) Point2w;</span><br></pre></td></tr></table></figure>
+
+<p>剩下的唯一问题是一个设计上的问题∶在我们的例子中对 placement operator 的第一次调用，会将新 object 构造于原已存在的 object 之上吗?还是会构造于全新地址上?也就是说，如果我们这样写∶</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Point2w *p2w = <span class="built_in">new</span> (arena) Point2w;</span><br></pre></td></tr></table></figure>
+
+<p>我们如何知道 arena 所指的这块区域是否需要先析构?这个问题在语言层面上并没有解答。一个合理的习俗是令执行 new 的这一端也要负起执行 destructor 的责任。</p>
+<p>另一个问题关系到 arena 所表现的真正指针类型。C+ Standard 说它必须指向相同类型的 class，要不就是一块”新鲜”内存，足够容纳该类型的 object。</p>
+<p><strong>注意：placement operator new 在 standard c++ 并未获得支持。</strong></p>
+<h2 id="6、template"><a href="#6、template" class="headerlink" title="6、template"></a>6、template</h2><p><strong>1、编译器如何找出函数的定义?</strong></p>
+<p>答案之一是包含 template program text file，就好像它是一个 header 文件一样。 Borland 编译器就遵循这个策略。</p>
+<p>另一种方法是要求一个文件命名规则，例如，我们可以要求，在 Point.h 文件中发现的函数声明，其 template program text 一定要放置于文件 Point.C 或 Point.cpp 中，依此类推。cfront 就遵循这个策略。Edison Design Group 编译器对这两种策略都支持。</p>
+<p><strong>2、编译器如何能够只实例化程序中用到的 member functions?</strong></p>
+<p>解决办法之一就是，根本忽略这项要求，把一个已经实例化的 class 的所有 member functions 都产生出来。Borland就是这么做的——虽然它也提供 #pragmas 让你压制（或实例化）特定实例。</p>
+<p>另一种策略就是模拟链接操作，检测看看哪一个函数真正需要，然后只为它（们）产生实例。cfront 就是这么做的。Edison Design Group 编译器对这两种策略都支持。</p>
+<p><strong>3、编译器如何阻止 member definitions 在多个 .o 文件中都被实例化呢?</strong></p>
+<p>解决办法之一就是产生多个实例，然后从链接器中提供支持，只留下其中一个实例，其余都忽略。</p>
+<p>另一个办法就是由使用者来导引”模拟链接阶段”的实例化策略，决定哪些实例（instances）才是所需求的。</p>
+<p>目前，不论是编译时期还是链接时期的实例化（instantiation）策略，均存在以下弱点∶</p>
+<p>当 template 实例被产生出来时，有时候会大量增加编译时间。很显然，这将是 template functions 第一次实例化时的必要条件。</p>
+<p>然而当那些函数被非必要地再次实例化，或是当”决定那些函数是否需要再实例化”所花的代价太大时，编译器的表现令人失望!</p>
+<p>Edison Design Group开发出一套第二代的directed-instantiation机制，非常接近于（我所知的）template facility 原始含义。它主要运作如下∶</p>
+<p>1、一个程序的原始码被编译时，最初并不会产生任何”template 实例化”。然而，相关信息已经被产生于 object files 之中。</p>
+<p>2、当 object files 被链接在一块儿时，会有一个 prelinker 程序被执行起来。它会检查 object files，寻找 template 实例的相互参考以及对应的定义。</p>
+<p>3、对于每一个”参考到 template 实例”而”该实例却没有定义”的情况，prelinker 将该文件视为与另一个实例化（在其中，实例已经实例化）等同。以这种方法，就可以将必要的程序实例化操作指定给特定的文件。这些都会注册在 prelinker 所产生的 .ii 文件中（放在磁盘目录 ii_file）。</p>
+<p>4、prelinker 重新执行编译器，重新编译每一个”.ii 文件曾被改变过”的文件。这个过程不断重复，直到所有必要的实例化操作都已完成。</p>
+<p>5、所有的 object files 被链接成一个可执行文件。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/27/simd/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2733,63 +3058,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/04/24/operating/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
-      <meta itemprop="name" content="John Doe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/24/operating/" class="post-title-link" itemprop="url">operating</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2022-04-24 21:27:08" itemprop="dateCreated datePublished" datetime="2022-04-24T21:27:08+08:00">2022-04-24</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2861,7 +3129,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-count">18</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
