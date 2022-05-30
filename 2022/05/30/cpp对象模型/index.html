@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="作者：CPP加油站链接：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;381390142来源：知乎著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。   本篇文章深入分析多态、虚继承、多重继承的内存布局以及实现原理。 首先还是看一下思维导图：  下面根据这个大纲一步一步的进行深入解析。 一、没有虚函数时内存布局是怎样的1. 没有虚函数时类的内存布局一个类没有虚函数的时">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cpp对象模型">
+<meta property="og:url" content="http://example.com/2022/05/30/cpp%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="作者：CPP加油站链接：https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;381390142来源：知乎著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。   本篇文章深入分析多态、虚继承、多重继承的内存布局以及实现原理。 首先还是看一下思维导图：  下面根据这个大纲一步一步的进行深入解析。 一、没有虚函数时内存布局是怎样的1. 没有虚函数时类的内存布局一个类没有虚函数的时">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-1343832a2e4707dcc6e42751c9788df5_b.jpg">
+<meta property="article:published_time" content="2022-05-30T07:28:25.000Z">
+<meta property="article:modified_time" content="2022-05-30T07:28:52.820Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic2.zhimg.com/v2-1343832a2e4707dcc6e42751c9788df5_b.jpg">
+
+<link rel="canonical" href="http://example.com/2022/05/30/cpp%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>cpp对象模型 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/30/cpp%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          cpp对象模型
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-30 15:28:25 / Modified: 15:28:52" itemprop="dateCreated datePublished" datetime="2022-05-30T15:28:25+08:00">2022-05-30</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>作者：CPP加油站<br>链接：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/381390142">https://zhuanlan.zhihu.com/p/381390142</a><br>来源：知乎<br>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。  </p>
+<p>本篇文章深入分析多态、虚继承、多重继承的内存布局以及实现原理。</p>
+<p>首先还是看一下思维导图：</p>
+<p><img src="https://pic2.zhimg.com/v2-1343832a2e4707dcc6e42751c9788df5_b.jpg"></p>
+<p>下面根据这个大纲一步一步的进行深入解析。</p>
+<h3 id="一、没有虚函数时内存布局是怎样的"><a href="#一、没有虚函数时内存布局是怎样的" class="headerlink" title="一、没有虚函数时内存布局是怎样的"></a>一、没有虚函数时内存布局是怎样的</h3><h3 id="1-没有虚函数时类的内存布局"><a href="#1-没有虚函数时类的内存布局" class="headerlink" title="1. 没有虚函数时类的内存布局"></a>1. 没有虚函数时类的内存布局</h3><p>一个类没有虚函数的时候，其实就是结构体，它的内存布局就是按照成员变量的顺序来的。</p>
+<p>看如下代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CPeople people;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>gdb怎么用这里就不展开了，默认你会使用gdb，使用gdb设置打印格式，然后看对象people的内存布局及大小，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">(gdb) set p pretty on</span><br><span class="line">(gdb) p people</span><br><span class="line">$6 = &#123;</span><br><span class="line">  height = 2.0731864055035386e-317, </span><br><span class="line">  age = 0, </span><br><span class="line">  sex = 0 &#x27;\000&#x27;</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p sizeof(people)</span><br><span class="line">$7 = 16</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure>
+
+<p>此时没有虚函数，类CPeople就是一个结构体，计算大小按照8个字节对齐。</p>
+<h3 id="2-没有虚函数时派生类的内存布局"><a href="#2-没有虚函数时派生类的内存布局" class="headerlink" title="2. 没有虚函数时派生类的内存布局"></a>2. 没有虚函数时派生类的内存布局</h3><p>把上面代码修改一下，增加一个派生类CSon，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CSon</span>: CPeople</span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> sisters;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CSon</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CSon</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CSon son;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此时再查看对象son的内存布局及大小，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p son</span><br><span class="line">$1 = &#123;</span><br><span class="line">  &lt;CPeople&gt; = &#123;</span><br><span class="line">    height = 2.317785465194599e-310, </span><br><span class="line">    age = -228471872, </span><br><span class="line">    sex = 54 &#x27;6&#x27;</span><br><span class="line">  &#125;, </span><br><span class="line">  members of CSon: </span><br><span class="line">  sisters = 4196224</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p sizeof(son)</span><br><span class="line">$2 = 24</span><br></pre></td></tr></table></figure>
+
+<p>说白了，就类似于下面这样的一个结构体：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">a</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">b</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">double</span> h;</span><br><span class="line">        <span class="type">int</span> a;</span><br><span class="line">        <span class="type">char</span> s;</span><br><span class="line">    &#125;bbb;</span><br><span class="line">    <span class="type">int</span> s;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>没有虚函数时不会涉及到虚函数表和虚表指针等问题，所以相对而言还比较简单。</p>
+<h3 id="二、有虚函数时内存布局是怎样的"><a href="#二、有虚函数时内存布局是怎样的" class="headerlink" title="二、有虚函数时内存布局是怎样的"></a>二、有虚函数时内存布局是怎样的</h3><h3 id="1-有虚函数的类的内存布局"><a href="#1-有虚函数的类的内存布局" class="headerlink" title="1. 有虚函数的类的内存布局"></a>1. 有虚函数的类的内存布局</h3><p>还是先看一个包含虚函数的单类，代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">double</span> height;<span class="comment">//这里设置为公共成员变量方便查看地址</span></span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CPeople people;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>还是使用gdb进行查看内存布局，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p people</span><br><span class="line">$1 = &#123;</span><br><span class="line">  _vptr.CPeople = 0x4008e0 &lt;vtable for CPeople+16&gt;, </span><br><span class="line">  height = 1.1659688840009374e-312, </span><br><span class="line">  age = 4196320, </span><br><span class="line">  sex = 0 &#x27;\000&#x27;</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p sizeof(people)</span><br><span class="line">$2 = 24</span><br><span class="line">(gdb) p &amp;people</span><br><span class="line">$3 = (CPeople *) 0x7fffffffe810</span><br><span class="line">(gdb) p &amp;people.height</span><br><span class="line">$4 = (double *) 0x7fffffffe818</span><br><span class="line">(gdb) p &amp;people.age</span><br><span class="line">$5 = (int *) 0x7fffffffe820</span><br><span class="line">(gdb) p &amp;people.sex</span><br><span class="line">$6 = 0x7fffffffe824 &quot;&quot;</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，有了虚函数以后，在之前基础上增加了<code>_vptr.CPeople = 0x4008e0 &lt;vtable for CPeople+16&gt;</code>这一行，其中vptr其实就是虚表指针，vtable就表示虚表，所以有了虚函数，对象就会相应的增加一个虚指针。</p>
+<p><strong>凡事存在虚函数的类，生成的对象都会生成一个虚表指针，并且这个虚表指针存储于对象所占用内存的最开始，也就是首先生成了虚表指针，然后再给成员变量分配的空间，虚表指针占用大小与操作系统有关，我这里是64位系统，所以这个虚表指针在这里是占用了8个字节。</strong></p>
+<p>接下来使用CPeople生成一个派生类CSon，但不实现同样的虚函数，看看是什么样的：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CSon</span>:<span class="keyword">public</span> CPeople</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> sisters;</span><br><span class="line"><span class="comment">//  void set()&#123;&#125;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CSon son;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>gdb查看内存布局，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p son</span><br><span class="line">$1 = &#123;</span><br><span class="line">  &lt;CPeople&gt; = &#123;</span><br><span class="line">    _vptr.CPeople = 0x400990 &lt;vtable for CSon+16&gt;, </span><br><span class="line">    height = 1.1659688840009374e-312, </span><br><span class="line">    age = 4196496, </span><br><span class="line">    sex = 0 &#x27;\000&#x27;</span><br><span class="line">  &#125;, </span><br><span class="line">  members of CSon: </span><br><span class="line">  sisters = 0</span><br><span class="line">&#125;</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure>
+
+<p>此时对于派生类对象而言，跟之前没有虚函数的时候没啥区别哈，一样的只是在基类基础上增加了派生类的成员变量而已，接下来我们在派生类中实现基类同样的虚函数看看会发生什么。</p>
+<h3 id="2-多态的原理"><a href="#2-多态的原理" class="headerlink" title="2. 多态的原理"></a>2. 多态的原理</h3><p>派生类中实现基类同样的虚函数，其实就是多态的基本操作啦，先看一下直接使用派生类对象是怎么样的，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CSon</span>:<span class="keyword">public</span> CPeople</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> sisters;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CSon son;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>还是使用gdb查看，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p son</span><br><span class="line">$2 = (CSon) &#123;</span><br><span class="line">  &lt;CPeople&gt; = &#123;</span><br><span class="line">    _vptr.CPeople = 0x4009a0 &lt;vtable for CSon+16&gt;, </span><br><span class="line">    height = 1.1659688840009374e-312, </span><br><span class="line">    age = 4196512, </span><br><span class="line">    sex = 0 &#x27;\000&#x27;</span><br><span class="line">  &#125;, </span><br><span class="line">  members of CSon: </span><br><span class="line">  sisters = 0</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p /a *(void**)0x4009a0</span><br><span class="line">$5 = 0x40082a &lt;CSon::set()&gt;</span><br></pre></td></tr></table></figure>
+
+<p>看起来内存布局其实跟之前没有区别哈，派生类并没有重新生成虚表指针，直接继承了基类的虚表指针，但从gdb的第二个打印我们可以看出，根据虚函数表指针找到虚函数表，此时我们看到虚函数表里面存放的是派生类的虚函数。</p>
+<p><strong>其实在普通继承(非虚继承)的时候派生类并不会重新生成虚表指针，只是会使用它自身的虚函数地址去覆盖基类的相同虚函数，如果是派生类独有的虚函数，则直接追加到虚函数表的最后面。</strong></p>
+<p>下面真正的实现一把多态，使用父类指针生成一个派生类对象，看看是怎样的，代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CSon</span>:<span class="keyword">public</span> CPeople</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> sisters;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">get</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CPeople *son = <span class="keyword">new</span> <span class="built_in">CSon</span>();</span><br><span class="line">    <span class="keyword">if</span> ( son != <span class="literal">nullptr</span> )</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">delete</span> son;</span><br><span class="line">        son = <span class="literal">nullptr</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用gdb查看<code>*son</code>的内存布局，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p *son</span><br><span class="line">$<span class="number">2</span> = (CSon) &#123;</span><br><span class="line">  &lt;CPeople&gt; = &#123;</span><br><span class="line">    _vptr.CPeople = <span class="number">0x400a90</span> &lt;vtable <span class="keyword">for</span> CSon+<span class="number">16</span>&gt;, </span><br><span class="line">    height = <span class="number">0</span>, </span><br><span class="line">    age = <span class="number">0</span>, </span><br><span class="line">    sex = <span class="number">0</span> <span class="string">&#x27;\000&#x27;</span></span><br><span class="line">  &#125;, </span><br><span class="line">  members of CSon: </span><br><span class="line">  sisters = <span class="number">0</span></span><br><span class="line">&#125;</span><br><span class="line">(gdb) p /a *(<span class="type">void</span>**)<span class="number">0x400a90</span></span><br><span class="line">$<span class="number">3</span> = <span class="number">0x400938</span> &lt;CSon::<span class="built_in">set</span>()&gt;</span><br><span class="line">(gdb) p /a *(<span class="type">void</span>**)<span class="number">0x400a90</span>@<span class="number">2</span></span><br><span class="line">$<span class="number">4</span> = &#123;<span class="number">0x400938</span> &lt;CSon::<span class="built_in">set</span>()&gt;, <span class="number">0x400944</span> &lt;CSon::<span class="built_in">get</span>()&gt;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里可以看到哈，其实跟直接使用派生类对象时内存布局没有不同哈，是一样的，只不过直接使用派生类对象是在编译时就已经确定了是调用基类还是派生类的虚函数，而使用基类指针则是在运行时才能确定的。</p>
+<p><strong>总结一下：c++继承时的多态一般指的运行时多态，使用基类指针或者引用指向一个派生类对象，在非虚继承的情况下，派生类直接继承基类的虚表指针，然后使用派生类的虚函数去覆盖基类的虚函数，这样派生类对象通过虚表指针访问到的虚函数就是派生类的虚函数了。</strong></p>
+<p>接着我们看下对象中各成员变量内存分布是怎么样的，还是用gdb，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p son</span><br><span class="line">$2 = (CSon *) 0x613c20</span><br><span class="line">(gdb) p &amp;son-&gt;height</span><br><span class="line">$3 = (double *) 0x613c28</span><br><span class="line">(gdb) p &amp;son-&gt;sisters</span><br><span class="line">$4 = (int *) 0x613c38</span><br></pre></td></tr></table></figure>
+
+<p>看的出来对象指针所指的一块内存，首地址是0x613c20，然后虚表指针占用8个字节，接着依次按照基类和派生类声明成员变量的顺序来存放，<strong>也就是说，非虚继承时内存是按照类继承顺序以及成员变量声明顺序来存储的，基类在前，派生类在后面。</strong></p>
+<h3 id="三、虚继承"><a href="#三、虚继承" class="headerlink" title="三、虚继承"></a>三、虚继承</h3><p>如果仔细看的话，可以发现我先前多次强调了非虚继承，这是因为在没有虚函数的时候是不是虚继承影响不大，但存在虚函数的时候虚继承和非虚继承是不一样的，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CPeople</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">double</span> height;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="type">char</span> sex;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">CPeople</span>()&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CSon</span>:<span class="keyword">virtual</span> <span class="keyword">public</span> CPeople</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> sisters;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">set</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">get</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    CPeople *son = <span class="keyword">new</span> <span class="built_in">CSon</span>();</span><br><span class="line">    <span class="keyword">if</span> ( son != <span class="literal">nullptr</span> )</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">delete</span> son;</span><br><span class="line">        son = <span class="literal">nullptr</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样使用gdb调试，打印出内存布局，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p *son</span><br><span class="line">$1 = (CSon) &#123;</span><br><span class="line">  &lt;CPeople&gt; = &#123;</span><br><span class="line">    _vptr.CPeople = 0x400b00 &lt;vtable for CSon+64&gt;, </span><br><span class="line">    height = 0, </span><br><span class="line">    age = 0, </span><br><span class="line">    sex = 0 &#x27;\000&#x27;</span><br><span class="line">  &#125;, </span><br><span class="line">  members of CSon: </span><br><span class="line">  _vptr.CSon = 0x400ad8 &lt;vtable for CSon+24&gt;, </span><br><span class="line">  sisters = 0</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p /a *(void**)0x400ad8@2</span><br><span class="line">$4 = &#123;0x40095a &lt;CSon::set()&gt;, 0x40096e &lt;CSon::get()&gt;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>看一下跟之前有啥区别呢，很明显，多了一个派生类自己的虚表指针，并且派生类的虚表指针和基类的虚表指针地址还不一样，这说明什么呢。</p>
+<p><strong>这说明虚继承不只是实现了派生类自己的虚表指针，还重新生成了属于它自己的虚函数表，但这样一来，等于虚继承就比非虚继承多了很多开销，所以大多数情况还是不要使用虚继承吧。</strong></p>
+<p>再说回内存布局，在非虚继承的时候，前面也说了是按照顺序存储，那么虚继承也是这样吗？看下面打印的数据：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p son</span><br><span class="line">$2 = (CSon *) 0x613c20</span><br><span class="line">(gdb) p &amp;son-&gt;height</span><br><span class="line">$3 = (double *) 0x613c38</span><br><span class="line">(gdb) p &amp;son-&gt;sisters</span><br><span class="line">$4 = (int *) 0x613c28</span><br></pre></td></tr></table></figure>
+
+<p>什么意思呢，很明显这里变了，派生类的虚表指针和成员变量在前面，基类的虚表指针和成员变量在后面，那么为什么基类的放在后面去了呢？</p>
+<p>所以虚拟继承不只是资源开销多一些，内存布局也会发生变化，那为什么还要有虚继承这个东西呢，接着往下看。</p>
+<h3 id="四、多重继承和二义性问题"><a href="#四、多重继承和二义性问题" class="headerlink" title="四、多重继承和二义性问题"></a>四、多重继承和二义性问题</h3><p>看下面这段使用了多重继承的代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span>: <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">C</span>: <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>:<span class="keyword">public</span> B, <span class="keyword">public</span> C</span><br><span class="line">&#123;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    D d;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>执行后输出结果如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">A()</span><br><span class="line">B()</span><br><span class="line">A()</span><br><span class="line">C()</span><br><span class="line">~C()</span><br><span class="line">~A()</span><br><span class="line">~B()</span><br><span class="line">~A()</span><br></pre></td></tr></table></figure>
+
+<p>看到没有类A的构造函数和析构函数都执行了两次，这很显然是不正确的，因为执行类B构造函数时要执行一次类A的构造函数，执行类C的时候也要执行一次类A的构造函数，析构函数同理，到这里问题还不大，毕竟可以编译和运行。</p>
+<p>把代码改一下，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">print</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;print()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span>: <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">C</span>: <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>:<span class="keyword">public</span> B, <span class="keyword">public</span> C</span><br><span class="line">&#123;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    D d;</span><br><span class="line">    d.<span class="built_in">print</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译直接就报错了:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">test.cpp:54:4: 错误：对成员‘print’的请求有歧义</span><br></pre></td></tr></table></figure>
+
+<p>为什么会有歧义呢，我们注释掉<code>d.print()</code>这一行，然后看下对象d的内存布局，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p d</span><br><span class="line">$1 = (D) &#123;</span><br><span class="line">  &lt;B&gt; = &#123;</span><br><span class="line">    &lt;A&gt; = &#123;</span><br><span class="line">      _vptr.A = 0x400fb8 &lt;vtable for D+16&gt;</span><br><span class="line">    &#125;, &lt;No data fields&gt;&#125;, </span><br><span class="line">  &lt;C&gt; = &#123;</span><br><span class="line">    &lt;A&gt; = &#123;</span><br><span class="line">      _vptr.A = 0x400fd8 &lt;vtable for D+48&gt;</span><br><span class="line">    &#125;, &lt;No data fields&gt;&#125;, &lt;No data fields&gt;&#125;</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure>
+
+<p>对象d里面有两个A，类B继承一个，类C继承一个，相当于有两条路，编译器此时不知道该走哪条路了，这就发生了歧义。</p>
+<p>而所谓有歧义，其实就是我们通常所说的二义性问题，而二义性问题要怎么解决呢？这就回答了我们上一章的问题，需要使用虚继承。</p>
+<p>把代码修改一下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">print</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;print()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">A</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~A()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">B</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~B()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">C</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">C</span>()</span><br><span class="line">    &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;~C()&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>:<span class="keyword">public</span> B, <span class="keyword">public</span> C</span><br><span class="line">&#123;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    D d;</span><br><span class="line">    d.<span class="built_in">print</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用<code>virtual public XX</code>这样的形式就叫做虚继承，类A就是虚基类，此时再看对象d的内存布局，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p d</span><br><span class="line">$1 = (D) &#123;</span><br><span class="line">  &lt;B&gt; = &#123;</span><br><span class="line">    &lt;A&gt; = &#123;</span><br><span class="line">      _vptr.A = 0x400fe0 &lt;vtable for D+32&gt;</span><br><span class="line">    &#125;, &lt;No data fields&gt;&#125;, </span><br><span class="line">  &lt;C&gt; = &#123;&lt;No data fields&gt;&#125;, &lt;No data fields&gt;&#125;</span><br><span class="line">(gdb)</span><br></pre></td></tr></table></figure>
+
+<p>此时就可以看到类D首先继承的类B有一份类A的继承，然后类C就不再有类A的继承，这样就把两条路变成了一条路了。</p>
+<p>有人会说，上面不是说虚继承会重新生成虚表指针吗，但这里是类B虚继承类A，但是类D继承的时候是非虚继承，所以类D并不会重新生成虚表指针，但此处类B和类C应该重新生产虚表指针，gdb查看却没有，我一开始也很疑惑，但到后面我又明白了。</p>
+<p>这时我们给类A加上成员变量，看一下他们是怎么样的，如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> a;</span><br><span class="line">    <span class="built_in">A</span>()&#123;&#125;</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">A</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">B</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">B</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">C</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">C</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">C</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>:<span class="keyword">public</span> B, <span class="keyword">public</span> C</span><br><span class="line">&#123;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    D d;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这次再查看内存布局，如下所示：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p d</span><br><span class="line">$1 = (D) &#123;</span><br><span class="line">  &lt;B&gt; = &#123;</span><br><span class="line">    &lt;A&gt; = &#123;</span><br><span class="line">      _vptr.A = 0x400c58 &lt;vtable for D+104&gt;, </span><br><span class="line">      a = 0</span><br><span class="line">    &#125;, </span><br><span class="line">    members of B: </span><br><span class="line">    _vptr.B = 0x400c08 &lt;vtable for D+24&gt;</span><br><span class="line">  &#125;, </span><br><span class="line">  &lt;C&gt; = &#123;</span><br><span class="line">    members of C: </span><br><span class="line">    _vptr.C = 0x400c30 &lt;vtable for D+64&gt;</span><br><span class="line">  &#125;, &lt;No data fields&gt;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在类A有成员变量的情况下，类B和类C都重新生成了虚表指针和自己的虚表，而如果在改一下代码，类A没有成员变量，此时无论类B和类C有成员变量还是虚函数，都不会再生成它们自己的虚表指针和虚函数表。</p>
+<p><strong>所以这里我们又知道了一个事，之前说虚继承后，派生类都会生成它自己的虚函数表和虚表指针，并不完全准确，准确来讲，当虚基类有成员变量时，派生类会生成它自己的虚函数表和虚表指针，当派生类没有成员变量时，并不会重新生成派生类自己的虚函数表和虚表指针。</strong></p>
+<p>然后我们给四个类都加上成员变量，看下多重继承时的内存布局，代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> a;</span><br><span class="line">    <span class="built_in">A</span>()&#123;&#125;</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">A</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> b;</span><br><span class="line">    <span class="built_in">B</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">B</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">C</span>: <span class="keyword">virtual</span> <span class="keyword">public</span> A</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> c;</span><br><span class="line">    <span class="built_in">C</span>()&#123;&#125;</span><br><span class="line">    ~<span class="built_in">C</span>()&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>:<span class="keyword">public</span> B, <span class="keyword">public</span> C</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">    <span class="type">int</span> d;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    D d;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>注意多重继承并没有按照声明和继承顺序那样去布局，它的地址分布如下所示：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">(gdb) p d</span><br><span class="line">$1 = (D) &#123;</span><br><span class="line">  &lt;B&gt; = &#123;</span><br><span class="line">    &lt;A&gt; = &#123;</span><br><span class="line">      _vptr.A = 0x400c58 &lt;vtable for D+104&gt;, </span><br><span class="line">      a = 0</span><br><span class="line">    &#125;, </span><br><span class="line">    members of B: </span><br><span class="line">    _vptr.B = 0x400c08 &lt;vtable for D+24&gt;, </span><br><span class="line">    b = 4197175</span><br><span class="line">  &#125;, </span><br><span class="line">  &lt;C&gt; = &#123;</span><br><span class="line">    members of C: </span><br><span class="line">    _vptr.C = 0x400c30 &lt;vtable for D+64&gt;, </span><br><span class="line">    c = -228471872</span><br><span class="line">  &#125;, </span><br><span class="line">  members of D: </span><br><span class="line">  d = 54</span><br><span class="line">&#125;</span><br><span class="line">(gdb) p &amp;d</span><br><span class="line">$2 = (D *) 0x7fffffffe800</span><br><span class="line">(gdb) p &amp;d.a</span><br><span class="line">$3 = (int *) 0x7fffffffe828</span><br><span class="line">(gdb) p &amp;d.b</span><br><span class="line">$4 = (int *) 0x7fffffffe808</span><br><span class="line">(gdb) p &amp;d.c</span><br><span class="line">$5 = (int *) 0x7fffffffe818</span><br><span class="line">(gdb) p &amp;d.d</span><br><span class="line">$6 = (int *) 0x7fffffffe81c</span><br></pre></td></tr></table></figure>
+
+<p>通过地址可以看得出来，对于类B、类C、类D这三个，它是按照顺序来存储的，对于类A与我们上一章虚继承得出的结果一样，虚基类的虚表指针和成员变量是放在一块内存的最后面的。</p>
+<p><strong>个人理解：虚基类之所以放在对象所属内存的后面，跟虚继承的机制有关，我们说用了虚继承以后，能保证虚基类在对象内存中永远只有一份拷贝，如果还是按照顺序存储，虚基类只有一份，但是派生类却有多个，那编译器到底该把虚基类放在哪个派生类前面呢，手心手背都是肉，不好处理，那就干脆放在最后面，让大家共享，这样就不存在打架的行为啦，同时这也解释了为什么虚继承能解决二义性问题。</strong></p>
+<h3 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h3><p>根据以上分析，总结出如下几点：</p>
+<ol>
+<li>一个没有虚函数的类，它的大小其实就是所有成员变量的大小，此时它就是一个由诸多成员变量组成的结构体，计算大小时同样要按照字节对齐去计算，下面所有计算大小都需按照字节对齐去计算，后面不再说明；</li>
+<li>一个没有虚函数的类派生出一个没有虚函数的派生类，那么这个派生类的内存布局就是先基类成员变量，然后派生类成员变量组成的结构体，各成员变量在内存中存储顺序按照声明时的顺序来存放；</li>
+<li>一个有虚函数的类，类本身会生成一份虚函数表，这个虚函数表是所有类对象共享的，每个类对象都会在构造时首先生成一个虚表指针，指向这个虚函数表，然后才是各个成员变量，所以有虚函数的类对象会比没有虚函数的类多一个虚表指针，虚表指针跟其他指针没有区别，在64位系统中就是占用8个字节；</li>
+<li>一个派生类非虚继承于一个有虚函数的类，不论派生类是否有同样的虚函数，它的内存布局都只是在有虚函数的基类基础上增加派生类的成员变量，虚表指针是直接继承基类的，指向基类虚表指针，如果派生类有同样的虚函数，那就覆盖基类虚表中同名函数，如果是派生类独有的虚函数，那就追加在基类虚函数表后面；</li>
+<li>一个派生类虚继承于一个有虚函数且没有成员变量的基类，则派生类也不会生成它自己的虚表指针和虚函数表，此时内存布局是首先是虚表指针，然后是派生类的成员变量，与第4点区别不大；</li>
+<li>一个派生类虚继承于一个有虚函数且有成员变量的基类，此时派生类会重新生成它自己的虚表指针和虚函数表，内存布局则是派生类的虚表指针和成员变量在前，基类的虚表指针和成员变量在后；</li>
+<li>多重继承时最好使用虚继承，否则不只是会产生令人头疼的二义性问题，还会多一份虚基类的拷贝，使用虚继承以后，大家共享虚基类，既节约了空间，又避免了二义性问题。</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/30/C/" rel="prev" title="C++">
+      <i class="fa fa-chevron-left"></i> C++
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E6%B2%A1%E6%9C%89%E8%99%9A%E5%87%BD%E6%95%B0%E6%97%B6%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E6%98%AF%E6%80%8E%E6%A0%B7%E7%9A%84"><span class="nav-number">1.</span> <span class="nav-text">一、没有虚函数时内存布局是怎样的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%B2%A1%E6%9C%89%E8%99%9A%E5%87%BD%E6%95%B0%E6%97%B6%E7%B1%BB%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="nav-number">2.</span> <span class="nav-text">1. 没有虚函数时类的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E6%B2%A1%E6%9C%89%E8%99%9A%E5%87%BD%E6%95%B0%E6%97%B6%E6%B4%BE%E7%94%9F%E7%B1%BB%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="nav-number">3.</span> <span class="nav-text">2. 没有虚函数时派生类的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E6%9C%89%E8%99%9A%E5%87%BD%E6%95%B0%E6%97%B6%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E6%98%AF%E6%80%8E%E6%A0%B7%E7%9A%84"><span class="nav-number">4.</span> <span class="nav-text">二、有虚函数时内存布局是怎样的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%9C%89%E8%99%9A%E5%87%BD%E6%95%B0%E7%9A%84%E7%B1%BB%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="nav-number">5.</span> <span class="nav-text">1. 有虚函数的类的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%A4%9A%E6%80%81%E7%9A%84%E5%8E%9F%E7%90%86"><span class="nav-number">6.</span> <span class="nav-text">2. 多态的原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E8%99%9A%E7%BB%A7%E6%89%BF"><span class="nav-number">7.</span> <span class="nav-text">三、虚继承</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E5%A4%9A%E9%87%8D%E7%BB%A7%E6%89%BF%E5%92%8C%E4%BA%8C%E4%B9%89%E6%80%A7%E9%97%AE%E9%A2%98"><span class="nav-number">8.</span> <span class="nav-text">四、多重继承和二义性问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="nav-number">9.</span> <span class="nav-text">五、总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="https://cdn5.maocdn.cn/img/2022/04/22/QQ20210612185528.jpg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
