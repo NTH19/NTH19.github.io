@@ -17,7 +17,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
   <meta property="og:type" content="website">
@@ -155,6 +155,86 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/03/28/cpp/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/28/cpp/" class="post-title-link" itemprop="url">cpp</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-03-28 10:46:42 / Modified: 10:56:23" itemprop="dateCreated datePublished" datetime="2023-03-28T10:46:42+08:00">2023-03-28</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>腾讯面试中被问到一个很有意思的面试题 虚函数的模板能被实例化吗</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">weight</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">       <span class="function"><span class="type">void</span> <span class="title">foo1</span><span class="params">(T a)</span> </span>&#123; ++a; &#125;</span><br><span class="line">       <span class="function"><span class="keyword">virtual</span>       <span class="type">void</span> <span class="title">foo2</span><span class="params">(T b)</span> </span>&#123; <span class="type">int</span> temp = *b; &#125;   </span><br><span class="line">&#125;;</span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="comment">// 编译失败</span></span><br><span class="line">       weight&lt;<span class="type">int</span>&gt;* par=<span class="keyword">new</span> weight&lt;<span class="type">int</span>&gt;;</span><br><span class="line">         par-&gt;<span class="built_in">foo1</span>(<span class="number">3</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实验结果是不行的</p>
+<p>显然模板虚函数是编译不过的，至于为什么，我们可以深究至C++多态的实现原理，就能知道为什么C++不允许定义模板虚函数了。</p>
+<p>我们知道C++的多态是通过虚表实现的，对于含有虚函数的类，会为其定义一个虚表，每个实例化的对象都有一个指向该虚表的指针，所以同样的类，含有虚函数的类的实例大小比不含虚函数的多上一个指针的大小，虚表里为每个虚函数维护着一条跳转记录，这些跳转地址在编译期就被确定了，存放在类定义模块的数据段中，在程序运行期是不可修改的。那么这跟模板虚函数有什么关系呢？</p>
+<p>让我们了解一点关于模板的特性，C++对于模版的处理，首先，模版并不算一种类型，在编译时，编译器只对已经实例化的模板类生成对应的模板类代码，假如这些类中定义的有模板类虚函数，则对每个实例化的模板类型创建一个虚表，这就是第一种情况—模板类虚函数，是可行的。</p>
+<p>现在再看看模板虚函数，为什么不可行，就拿上面的代码讲：</p>
+<p>A是一个类型，它含有模板虚函数，虽然是虚函数，但是函数的符号并不确定，因为我们不知道模板T是一个什么类型，对于从没调用过这个模板函数的情况下，这个模板虚函数甚至都不会实例化，那么就相当于没有虚函数了。那么为了实现模板虚函数，我们姑且认为它就是含有虚函数，所以A应该有一张虚表，但是A的虚函数符号并不确定，要根据当前调用的情况来确定，A的这个模板虚函数到底实例化了几个类型，那么对于每个类型的虚函数都添加一个虚表记录，这样看起来，实现模板虚函数貌似是可行的，但是这也只仅限于单个文件编译成可执行文件的情况下。</p>
+<p>我们都知道C++编译中间是有几个步骤的，预处理、编译和链接，每个cpp或c文件都会被编译成目标文件，然后这些目标文件在通过链接生成可执行文件。那么考虑一下这种情况，假如现在我有两个cpp文件分别是x.cpp和y.cpp，上面的模板虚函数，我在x.cpp文件中实例化了</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">foo</span><span class="params">(<span class="type">int</span>&amp; t)</span></span>;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">foo</span><span class="params">(<span class="type">float</span>&amp; t)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>而在y.cpp中实例化了</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">foo</span><span class="params">(<span class="type">int</span>&amp; t)</span></span>;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">foo</span><span class="params">(<span class="type">bool</span>&amp; t)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">那么x.o和y.o中的A类的虚表都含有两天记录，但是函数符号却并不一样，那么为了实现模板虚函数，进行链接的时候就需要对虚表合并去重了，先抛去实现代价的问题，从理论上看起来的确是可行的。</span><br><span class="line"></span><br><span class="line">然而事情并不是到此为止了，我们知道目标文件不只是可以链接成可执行文件，还可以链接成静态库和动态库，对于静态库，再进行链接的时候和普通链接差别不大，但是动态库就没有那么好运了。</span><br><span class="line"></span><br><span class="line">考虑这样的一种情况，在动态库里面定义了上面的模板函数，而且实例化了</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">foo</span><span class="params">(<span class="type">bool</span>&amp; t)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>那么此时为了继续下去，就得修改动态链接库中B类的虚表了，为它添加一条记录，很显然是行不通的。至于为什么行不通，抛开程序段的可读写的问题不谈，如果真的可修改，那么这个类型的每个实例都可能会守到其它实例的影响了，与类的设计原则相悖了。</p>
+<p>至此为什么模板虚函数为什么行不通已经很明显了。</p>
+<p>总结 动态链接库的原因,违反设计</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2023/03/21/io-uring/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -178,10 +258,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">Posted on</span>
-              
 
-              <time title="Created: 2023-03-21 15:00:35 / Modified: 15:14:05" itemprop="dateCreated datePublished" datetime="2023-03-21T15:00:35+08:00">2023-03-21</time>
+              <time title="Created: 2023-03-21 15:00:35" itemprop="dateCreated datePublished" datetime="2023-03-21T15:00:35+08:00">2023-03-21</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-03-28 10:37:40" itemprop="dateModified" datetime="2023-03-28T10:37:40+08:00">2023-03-28</time>
+              </span>
 
           
 
@@ -402,13 +488,15 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">2</span>
+          <span class="site-state-item-count">3</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">1</span>
-        <span class="site-state-item-name">tags</span>
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
 </div>
@@ -440,7 +528,7 @@
   </span>
   <span class="author" itemprop="copyrightHolder">John Doe</span>
 </div>
-  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a>
   </div>
 
         
@@ -466,7 +554,7 @@
 <script src="/js/motion.js"></script>
 
 
-<script src="/js/schemes/muse.js"></script>
+<script src="/js/schemes/pisces.js"></script>
 
 
 <script src="/js/next-boot.js"></script>
