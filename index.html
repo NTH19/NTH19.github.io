@@ -155,6 +155,101 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/04/22/levelDbPart4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/shijiu.jpeg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/22/levelDbPart4/" class="post-title-link" itemprop="url">levelDbPart4</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-22 17:18:43 / Modified: 17:21:05" itemprop="dateCreated datePublished" datetime="2023-04-22T17:18:43+08:00">2023-04-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="leveldb-的写入流程"><a href="#leveldb-的写入流程" class="headerlink" title="leveldb 的写入流程"></a>leveldb 的写入流程</h1><p>在前面一节中我们讨论了 leveldb 中的 varint 以及 Key 格式，用户所传入的 User Key 将会被封装成 MemTable Key，再加上 User Value 封装成 MemTable Entry 写入到 MemTable 中:</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SHIJIUB/imgStore@main/uPic/1628668662510.png" alt="1628668662510"></p>
+<p>在这一节中，就来分析一下 K-V 是如何被写入到硬盘中的。</p>
+<h2 id="1-WriteBatch"><a href="#1-WriteBatch" class="headerlink" title="1. WriteBatch"></a>1. WriteBatch</h2><p><code>include/leveldb/db.h</code> 中的 <code>DB</code> 类提供了 leveldb 对外的抽象 API，该类中所有的函数均为纯虚函数，也就是说，<code>DB</code> 类其实就是一个 Interface。不过，由于 C++ 语法的特殊性，<code>DB</code> 类也可以对纯虚函数进行实现，并且 leveldb 也给出了默认实现。</p>
+<p>有两个类实现了 <code>DB</code> 接口，一个是位于 <code>db/db_test.cc</code> 文件中的 <code>ModelDB</code>，另一个则是位于 <code>db/db_impl.cc</code> 中的 <code>DBImpl</code>。很明显，<code>ModelDB</code> 主要用于测试，而 <code>DBImpl</code> 才是 leveldb 实现的核心类。在本节中，我们只需要关注 <code>DBImpl::Put()</code> 和 <code>DBImpl::Write()</code> 这两个方法即可。</p>
+<p>首先来看 <code>Put()</code> 方法:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">WriteOptions</span> &#123;</span><br><span class="line">    <span class="built_in">WriteOptions</span>() = <span class="keyword">default</span>;</span><br><span class="line">    <span class="type">bool</span> sync = <span class="literal">false</span>;      <span class="comment">/* 写入 WAL 时是否同步调用 fsync() */</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* DBImpl 实现的 Put() 方法，本质上还是调用了 leveldb 的默认实现 */</span></span><br><span class="line"><span class="function">Status <span class="title">DBImpl::Put</span><span class="params">(<span class="type">const</span> WriteOptions&amp; o, <span class="type">const</span> Slice&amp; key, <span class="type">const</span> Slice&amp; val)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> DB::<span class="built_in">Put</span>(o, key, val);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 真正的 Put() 方法实现 */</span></span><br><span class="line"><span class="function">Status <span class="title">DB::Put</span><span class="params">(<span class="type">const</span> WriteOptions&amp; opt, <span class="type">const</span> Slice&amp; key, <span class="type">const</span> Slice&amp; value)</span> </span>&#123;</span><br><span class="line">  WriteBatch batch;</span><br><span class="line">  batch.<span class="built_in">Put</span>(key, value);</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">Write</span>(opt, &amp;batch);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>WriteOptions</code> 中只有 <code>sync</code> 一个字段，用于控制当 leveldb 将数据写入到预写日志时，是否同步地调用 <code>fsync()</code> 将内核缓冲区中的数据 flush 到硬盘，其值默认为 <code>false</code>。在生产实践中，这个值一般为 <code>true</code>，尽管为 <code>false</code> 时能够提高 leveldb 的写入速度，但是会有数据丢失的风险。</p>
+<p>在 <code>DB::Put()</code> 方法中，生成了一个 <code>WriteBatch</code> 对象。leveldb 为了提高写入效率，会将多个线程提交的 K-V 写操作打包成一个 <code>WriteBatch</code> 对象，然后进行一次性写入，是一种常见的批量写入优化手段。<code>WriteBatch</code> 的底层数据结构实际上就是一个 <code>std::string</code>，用于承载多个 K-V。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">WriteBatch</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">WriteBatch</span>();</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">Put</span><span class="params">(<span class="type">const</span> Slice&amp; key, <span class="type">const</span> Slice&amp; value)</span></span>; <span class="comment">/* 添加 K-V */</span></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">Delete</span><span class="params">(<span class="type">const</span> Slice&amp; key)</span></span>;                  <span class="comment">/* 删除 K-V */</span></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">Append</span><span class="params">(<span class="type">const</span> WriteBatch&amp; source)</span></span>;          <span class="comment">/* Copy WriteBatch */</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">/* Iterate 方法将会遍历 rep_ 中的 K-V，并根据 K-V 中的 Value Type 来决定</span></span><br><span class="line"><span class="comment">     * 调用 handler-&gt;Put() 或 handler-&gt;Delete()，Handler 是一个抽象基类*/</span></span><br><span class="line">    <span class="function">Status <span class="title">Iterate</span><span class="params">(Handler* handler)</span> <span class="type">const</span></span>;         </span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">WriteBatchInternal</span>;</span><br><span class="line">    std::string rep_;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>因为 <code>DB::Put()</code> 调用了 <code>WriteBatch::Put()</code> 方法，所以现在来看下 <code>WriteBatch::Put()</code> 方法的具体实现:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 将 value.size() 进行 varint 编码，写入 dst 中，并且将 value 也追加到 dst 中 */</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">PutLengthPrefixedSlice</span><span class="params">(std::string* dst, <span class="type">const</span> Slice&amp; value)</span> </span>&#123;</span><br><span class="line">  <span class="built_in">PutVarint32</span>(dst, value.<span class="built_in">size</span>());</span><br><span class="line">  dst-&gt;<span class="built_in">append</span>(value.<span class="built_in">data</span>(), value.<span class="built_in">size</span>());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 将 User Key、User Value 以及 Value Type 追加到 rep_ 中 */</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">WriteBatch::Put</span><span class="params">(<span class="type">const</span> Slice&amp; key, <span class="type">const</span> Slice&amp; value)</span> </span>&#123;</span><br><span class="line">  WriteBatchInternal::<span class="built_in">SetCount</span>(<span class="keyword">this</span>, WriteBatchInternal::<span class="built_in">Count</span>(<span class="keyword">this</span>) + <span class="number">1</span>);</span><br><span class="line">  rep_.<span class="built_in">push_back</span>(<span class="built_in">static_cast</span>&lt;<span class="type">char</span>&gt;(kTypeValue));</span><br><span class="line">  <span class="built_in">PutLengthPrefixedSlice</span>(&amp;rep_, key);</span><br><span class="line">  <span class="built_in">PutLengthPrefixedSlice</span>(&amp;rep_, value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>WriteBatch::Put</code> 只是简单地将 User Key、User Value 以及 Value Type 进行打包，得到一个打包后的“数组”，其内存布局如下图所示:</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SHIJIUB/imgStore@main/uPic/1628755874963.png" alt="1628755874963"></p>
+<p>需要注意的是在 <code>rep_</code> 的起始位置存在 12 字节的预留位，用于填充这些 K-V 的起始 Sequence Number 以及 Count 计数。将多个 K-V 打包完成以后，将会调用 <code>DBImpl::Write()</code> 方法，正式进入 leveldb 的写入流程。</p>
+<h2 id="2-写入逻辑"><a href="#2-写入逻辑" class="headerlink" title="2. 写入逻辑"></a>2. 写入逻辑</h2><p>在将数据写入预写日志文件之前，需要循环确认 leveldb 的状态，主要包括 MemTable 是否达到最大容量、Level-0 中的文件数是否已经达到某个阈值等。如果 MemTable 已经达到了最大容量，并且此时 Immutable MemTable 仍未 flush 到硬盘时，leveldb 将会等待后台线程完成其相关工作。这些判断均在 <code>MakeRoomForWrite()</code> 方法中进行:</p>
+<ol>
+<li>如果当前 Level-0 层的 SSTable 数量已经达到了阈值 <code>kL0_SlowdownWritesTrigger</code>（默认为 8），则会调用 <code>std::this_thread::sleep_for()</code> 方法延迟 1 毫秒写入，该延迟写入只会进行 1 次。</li>
+<li>如果当前 MemTable 容量没有达到最大大小（<code>write_buffer_size</code>，默认为 4MB）则允许写入，返回 OK 状态的 <code>Status</code>。</li>
+<li>如果 MemTable 已达到最大容量，并且 Immutable MemTable 仍存在的话，就需要等待 Compaction 完成。</li>
+<li>如果 Level-0 层的 SSTable 数量已经达到了阈值 <code>kL0_StopWritesTrigger</code>（默认为 12），同样需要等待 Compaction 完成。</li>
+<li>最后，当 MemTable 以达到最大容量，并且 Immutable MemTable 不存在时，就需要将 Memtable 主动地变更为 Immutable MemTable，并初始化一个新的 MemTable 和日志文件，并主动地触发 Minor Compaction，可能会创建一个新的线程执行，同时允许写入。</li>
+</ol>
+<p>当 <code>MakeRoomForWrite()</code> 方法调用返回时，不管之前发生了什么，现在的 MemTable 一定是有剩余容量并且 Level-0 的文件数量大概率小于 4，所以可以进行接下来的写入流程。</p>
+<p>而后，我们需要获取最新的 Sequence Number，并将 <code>last_sequence + 1</code> 写入到 <code>write_batch</code> 的起始位置上，而后就可以写预写日志了。</p>
+<p>在写完预写日志以后，会根据 <code>options.sync</code> 的值来决定是否调用 <code>fsync()</code> 进行刷盘，成功以后就会将 <code>write_batch</code> 中数据写入至 Skip List 所实现的 MemTable 中。</p>
+<p>这个过程在 <code>WriteBatch::Iterate()</code> 方法中进行，遍历 <code>rep_</code> 中打包好的 K-V，逐一地调用 <code>MemTable::Add()</code> 方法:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">MemTable::Add</span><span class="params">(SequenceNumber s, ValueType type, <span class="type">const</span> Slice&amp; key,</span></span></span><br><span class="line"><span class="params"><span class="function">                   <span class="type">const</span> Slice&amp; value)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，MemTable Entry 所需要的“四元素”均会由外部传入，在 <code>MemTable::Add()</code> 方法内部将会调用相关的编码函数将其打包成 MemTable Entry 的格式插入到 Skip List 中。MemTable Entry 格式具体可见本篇文章开头部分。</p>
+<p>最后，leveldb 将会更新全局的 Sequence Number，其值就是原来的 Sequence Number 再加上此次 <code>write_batch</code> 写入的 K-V 数量。</p>
+<p>整个写入流程可见下图:</p>
+<p><img src="https://cdn.jsdelivr.net/gh/SHIJIUB/imgStore@main/uPic/1628835101487.png" alt="1628835101487"></p>
+<p>关于预写日志的格式与写入流程将在下篇描述。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2023/04/20/levelDbPart3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -681,7 +776,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-count">6</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
