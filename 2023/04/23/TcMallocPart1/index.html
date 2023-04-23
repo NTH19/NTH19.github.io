@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","width":240,"display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="TCMalloc的内存分配算法概览转载自https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;51432385 仅作学习使用 TCMalloc的官方介绍中将内存分配称为Object Allocation，本文也沿用这种叫法，并将object翻译为对象，可以将其理解为具有一定大小的内存。 按照所分配内存的大小，TCMalloc将内存分配分为三类：  小对象分配，(0, 256KB] 中对象分配，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TCMalloc的内存分配算法概览">
+<meta property="og:url" content="http://example.com/2023/04/23/TcMallocPart1/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="TCMalloc的内存分配算法概览转载自https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;51432385 仅作学习使用 TCMalloc的官方介绍中将内存分配称为Object Allocation，本文也沿用这种叫法，并将object翻译为对象，可以将其理解为具有一定大小的内存。 按照所分配内存的大小，TCMalloc将内存分配分为三类：  小对象分配，(0, 256KB] 中对象分配，">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic1.zhimg.com/80/v2-39c1586740e79d9dcfa1fc1a42148b68_1440w.webp">
+<meta property="og:image" content="https://pic4.zhimg.com/80/v2-cd9671f71da82cfe4675ef47a29b1c8b_1440w.webp">
+<meta property="og:image" content="https://pic2.zhimg.com/80/v2-a2dc32a2f4f4016bdb73467394295e89_1440w.webp">
+<meta property="og:image" content="https://pic4.zhimg.com/80/v2-e54d737232fc09f1c97ab9fbe96d2013_1440w.webp">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-7f6862001e54df832ba538e0a0dad3ba_1440w.webp">
+<meta property="article:published_time" content="2023-04-23T09:15:09.000Z">
+<meta property="article:modified_time" content="2023-04-23T09:17:19.096Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="源码阅读">
+<meta property="article:tag" content="内存管理">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic1.zhimg.com/80/v2-39c1586740e79d9dcfa1fc1a42148b68_1440w.webp">
+
+<link rel="canonical" href="http://example.com/2023/04/23/TcMallocPart1/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>TCMalloc的内存分配算法概览 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/04/23/TcMallocPart1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/shijiu.jpeg">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TCMalloc的内存分配算法概览
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-04-23 17:15:09 / Modified: 17:17:19" itemprop="dateCreated datePublished" datetime="2023-04-23T17:15:09+08:00">2023-04-23</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="TCMalloc的内存分配算法概览"><a href="#TCMalloc的内存分配算法概览" class="headerlink" title="TCMalloc的内存分配算法概览"></a>TCMalloc的内存分配算法概览</h2><p>转载自<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/51432385">https://zhuanlan.zhihu.com/p/51432385</a> 仅作学习使用</p>
+<p>TCMalloc的<a href="https://link.zhihu.com/?target=https://gperftools.github.io/gperftools/tcmalloc.html">官方介绍</a>中将内存分配称为<em>Object Allocation</em>，本文也沿用这种叫法，并将object翻译为<strong>对象</strong>，可以将其理解为具有一定大小的内存。</p>
+<p>按照所分配内存的大小，TCMalloc将内存分配分为三类：</p>
+<ul>
+<li>小对象分配，(0, 256KB]</li>
+<li>中对象分配，(256KB, 1MB]</li>
+<li>大对象分配，(1MB, +∞)</li>
+</ul>
+<p>简要介绍几个概念，Page，Span，PageHeap：</p>
+<p>与操作系统管理内存的方式类似，TCMalloc将整个虚拟内存空间划分为n个同等大小的<strong>Page</strong>，每个page默认8KB。又将连续的n个page称为一个<strong>Span</strong>。</p>
+<p>TCMalloc定义了<strong>PageHeap</strong>类来处理向OS申请内存相关的操作，并提供了一层缓存。可以认为，PageHeap就是整个可供应用程序动态分配的内存的抽象。</p>
+<p>PageHeap以span为单位向系统申请内存，申请到的span可能只有一个page，也可能包含n个page。可能会被划分为一系列的小对象，供小对象分配使用，也可能当做一整块当做中对象或大对象分配。</p>
+<h2 id="小对象分配"><a href="#小对象分配" class="headerlink" title="小对象分配"></a>小对象分配</h2><h2 id="Size-Class"><a href="#Size-Class" class="headerlink" title="Size Class"></a>Size Class</h2><p>对于256KB以内的小对象分配，TCMalloc按大小划分了85个类别（<a href="https://link.zhihu.com/?target=https://gperftools.github.io/gperftools/tcmalloc.html">官方介绍</a>中说是88个左右，但我个人实际测试是85个，不包括0字节大小），称为<strong>Size Class</strong>，每个size class都对应一个大小，比如8字节，16字节，32字节。应用程序申请内存时，TCMalloc会首先将所申请的内存大小向上取整到size class的大小，比如1<del>8字节之间的内存申请都会分配8字节，9</del>16字节之间都会分配16字节，以此类推。因此这里会产生内部碎片。TCMalloc将这里的内部碎片控制在12.5%以内，具体的做法在讨论size class的实现细节时再详细分析。</p>
+<h2 id="ThreadCache"><a href="#ThreadCache" class="headerlink" title="ThreadCache"></a>ThreadCache</h2><p>对于每个线程，TCMalloc都为其保存了一份单独的缓存，称之为<strong>ThreadCache</strong>，这也是TCMalloc名字的由来（Thread-Caching Malloc）。每个ThreadCache中对于每个size class都有一个单独的<strong>FreeList</strong>，缓存了n个还未被应用程序使用的空闲对象。</p>
+<p>小对象的分配直接从ThreadCache的FreeList中返回一个空闲对象，相应的，小对象的回收也是将其重新放回ThreadCache中对应的FreeList中。</p>
+<p>由于每线程一个ThreadCache，因此从ThreadCache中取用或回收内存是<strong>不需要加锁</strong>的，速度很快。</p>
+<p>为了方便统计数据，各线程的ThreadCache连接成一个双向链表。ThreadCache的结构示大致如下：</p>
+<p><img src="https://pic1.zhimg.com/80/v2-39c1586740e79d9dcfa1fc1a42148b68_1440w.webp" alt="img"></p>
+<h2 id="CentralCache"><a href="#CentralCache" class="headerlink" title="CentralCache"></a>CentralCache</h2><p>那么ThreadCache中的空闲对象从何而来呢？答案是<strong>CentralCache</strong>——一个所有线程公用的缓存。</p>
+<p>与ThreadCache类似，CentralCache中对于每个size class也都有一个单独的链表来缓存空闲对象，称之为<strong>CentralFreeList</strong>，供各线程的ThreadCache从中取用空闲对象。</p>
+<p>由于是所有线程公用的，因此从CentralCache中取用或回收对象，是<strong>需要加锁</strong>的。为了平摊锁操作的开销，ThreadCache一般从CentralCache中一次性取用或回收多个空闲对象。</p>
+<p>CentralCache在TCMalloc中并不是一个类，只是一个逻辑上的概念，其本质是<strong>CentralFreeList</strong>类型的数组。后文会详细讨论CentralCache的内部结构，现在暂且认为CentralCache的<strong>简化结构</strong>如下：</p>
+<p><img src="https://pic4.zhimg.com/80/v2-cd9671f71da82cfe4675ef47a29b1c8b_1440w.webp" alt="img"></p>
+<h2 id="PageHeap"><a href="#PageHeap" class="headerlink" title="PageHeap"></a>PageHeap</h2><p>CentralCache中的空闲对象又是从何而来呢？答案是之前提到的<strong>PageHeap</strong>——TCMalloc对可动态分配的内存的抽象。</p>
+<p>当CentralCache中的空闲对象不够用时，CentralCache会向PageHeap申请一块内存（可能来自PageHeap的缓存，也可能向系统申请新的内存），并将其拆分成一系列空闲对象，添加到对应size class的CentralFreeList中。</p>
+<p>PageHeap内部根据内存块（span）的大小采取了两种不同的缓存策略。128个page以内的span，每个大小都用一个链表来缓存，超过128个page的span，存储于一个有序set（std::set）。讨论TCMalloc的实现细节时再具体分析，现在可以认为PageHeap的<strong>简化结构</strong>如下：</p>
+<p><img src="https://pic2.zhimg.com/80/v2-a2dc32a2f4f4016bdb73467394295e89_1440w.webp" alt="img"></p>
+<h2 id="内存回收"><a href="#内存回收" class="headerlink" title="内存回收"></a>内存回收</h2><p>上面说的都是内存分配，内存回收的情况是怎样的？</p>
+<p>应用程序调用free()或delete一个小对象时，仅仅是将其插入到ThreadCache中其size class对应的FreeList中而已，不需要加锁，因此速度也是非常快的。</p>
+<p>只有当满足一定的条件时，ThreadCache中的空闲对象才会重新放回CentralCache中，以供其他线程取用。同样的，当满足一定条件时，CentralCache中的空闲对象也会还给PageHeap，PageHeap再还给系统。</p>
+<p>内存在这些组件之间的移动会在后文详细讨论，现在先忽略这些细节。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>总结一下，小对象分配流程大致如下：</p>
+<ul>
+<li><p>将要分配的内存大小映射到对应的size class。</p>
+</li>
+<li><p>查看ThreadCache中该size class对应的FreeList。</p>
+</li>
+<li><p>如果FreeList非空，则移除FreeList的第一个空闲对象并将其返回，分配结束。</p>
+</li>
+<li><p>如果FreeList是空的：</p>
+</li>
+<li><p>从CentralCache中size class对应的CentralFreeList获取一堆空闲对象。</p>
+</li>
+<li><ul>
+<li>如果CentralFreeList也是空的，则：</li>
+<li>向PageHeap申请一个span。</li>
+<li>拆分成size class对应大小的空闲对象，放入CentralFreeList中。</li>
+</ul>
+</li>
+<li><p>将这堆对象放置到ThreadCache中size class对应的FreeList中（第一个对象除外）。</p>
+</li>
+<li><p>返回从CentralCache获取的第一个对象，分配结束。</p>
+</li>
+</ul>
+<h2 id="中对象分配"><a href="#中对象分配" class="headerlink" title="中对象分配"></a>中对象分配</h2><p>超过256KB但不超过1MB（128个page）的内存分配被认为是中对象分配，采取了与小对象不同的分配策略。</p>
+<p>首先，TCMalloc会将应用程序所要申请的内存大小向上取整到<strong>整数个page</strong>（因此，这里会产生1B~8KB的内部碎片）。之后的操作表面上非常简单，向PageHeap申请一个指定page数量的span并返回其起始地址即可：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Span* span = Static::<span class="built_in">pageheap</span>()-&gt;<span class="built_in">New</span>(num_pages);</span><br><span class="line">result = (<span class="built_in">PREDICT_FALSE</span>(span == <span class="literal">NULL</span>) ? <span class="literal">NULL</span> : <span class="built_in">SpanToMallocResult</span>(span));</span><br><span class="line"><span class="keyword">return</span> result;</span><br></pre></td></tr></table></figure>
+
+<p>问题在于，PageHeap是如何管理这些span的？即<code>PageHeap::New()</code>是如何实现的。</p>
+<p>前文说到，PageHeap提供了一层缓存，因此<code>PageHeap::New()</code>并非每次都向系统申请内存，也可能直接从缓存中分配。</p>
+<p>对128个page以内的span和超过128个page的span，PageHeap采取的缓存策略不一样。为了描述方便，以下将128个page以内的span称为小span，大于128个page的span称为大span。</p>
+<p>先来看小span是如何管理的，大span的管理放在大对象分配一节介绍。</p>
+<p>PageHeap中有128个小span的链表，分别对应1~128个page的span：</p>
+<p><img src="https://pic4.zhimg.com/80/v2-e54d737232fc09f1c97ab9fbe96d2013_1440w.webp" alt="img"></p>
+<p>假设要分配一块内存，其大小经过向上取整之后对应k个page，因此需要从PageHeap取一个大小为k</p>
+<p>个page的span，过程如下：</p>
+<ul>
+<li>从k个page的span链表开始，到128个page的span链表，按顺序找到第一个非空链表。</li>
+<li>取出这个非空链表中的一个span，假设有n个page，将这个span拆分成两个span：</li>
+<li>一个span大小为k个page，作为分配结果返回。</li>
+<li>另一个span大小为n - k个page，重新插入到n - k个page的span链表中。</li>
+<li>如果找不到非空链表，则将这次分配看做是大对象分配，分配过程详见下文。</li>
+</ul>
+<h2 id="大对象分配"><a href="#大对象分配" class="headerlink" title="大对象分配"></a>大对象分配</h2><p>超过1MB（128个page）的内存分配被认为是大对象分配，与中对象分配类似，也是先将所要分配的内存大小向上取整到整数个page，假设是k个page，然后向PageHeap申请一个k个page大小的span。</p>
+<p>对于中对象的分配，如果上述的span链表无法满足，也会被当做是大对象来处理。也就是说，TCMalloc在源码层面其实并没有区分中对象和大对象，只是对于不同大小的span的缓存方式不一样罢了。</p>
+<p>大对象分配用到的span都是超过128个page的span，其缓存方式不是链表，而是一个按span大小排序的<strong>有序set</strong>（std::set），以便按大小进行搜索。</p>
+<p>假设要分配一块超过1MB的内存，其大小经过向上取整之后对应k个page（k&gt;128），或者是要分配一块1MB以内的内存，但无法由中对象分配逻辑来满足，此时k &lt;&#x3D; 128。不管哪种情况，都是要从PageHeap的span set中取一个大小为k个page的span，其过程如下：</p>
+<ul>
+<li>搜索set，找到不小于k个page的最小的span（<strong>best-fit</strong>），假设该span有n个page。</li>
+<li>将这个span拆分为两个span：</li>
+<li>一个span大小为k个page，作为结果返回。</li>
+<li>另一个span大小为n - k个page，如果n - k &gt; 128，则将其插入到大span的set中，否则，将其插入到对应的小span链表中。</li>
+<li>如果找不到合适的span，则使用sbrk或mmap向系统申请新的内存以生成新的span，并重新执行中对象或大对象的分配算法。</li>
+</ul>
+<h2 id="小结-1"><a href="#小结-1" class="headerlink" title="小结"></a>小结</h2><p>以上讨论忽略了很多实现上的细节，比如PageHeap对span的管理还区分了normal状态的span和returned状态的span，接下来会详细分析这些细节。</p>
+<p>在此之前，画张图概括下TCMalloc的管理内存的策略：</p>
+<p><img src="https://pic3.zhimg.com/80/v2-7f6862001e54df832ba538e0a0dad3ba_1440w.webp" alt="img"></p>
+<p>可以看到，不超过256KB的小对象分配，在应用程序和内存之间其实有三层缓存：PageHeap、CentralCache、ThreadCache。而中对象和大对象分配，则只有PageHeap一层缓存。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/" rel="tag"># 源码阅读</a>
+              <a href="/tags/%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/" rel="tag"># 内存管理</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/04/22/levelDbPart4/" rel="prev" title="levelDbPart4">
+      <i class="fa fa-chevron-left"></i> levelDbPart4
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TCMalloc%E7%9A%84%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E7%AE%97%E6%B3%95%E6%A6%82%E8%A7%88"><span class="nav-number">1.</span> <span class="nav-text">TCMalloc的内存分配算法概览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E5%AF%B9%E8%B1%A1%E5%88%86%E9%85%8D"><span class="nav-number">2.</span> <span class="nav-text">小对象分配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Size-Class"><span class="nav-number">3.</span> <span class="nav-text">Size Class</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ThreadCache"><span class="nav-number">4.</span> <span class="nav-text">ThreadCache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CentralCache"><span class="nav-number">5.</span> <span class="nav-text">CentralCache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#PageHeap"><span class="nav-number">6.</span> <span class="nav-text">PageHeap</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6"><span class="nav-number">7.</span> <span class="nav-text">内存回收</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">8.</span> <span class="nav-text">小结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AD%E5%AF%B9%E8%B1%A1%E5%88%86%E9%85%8D"><span class="nav-number">9.</span> <span class="nav-text">中对象分配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%A7%E5%AF%B9%E8%B1%A1%E5%88%86%E9%85%8D"><span class="nav-number">10.</span> <span class="nav-text">大对象分配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-1"><span class="nav-number">11.</span> <span class="nav-text">小结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="John Doe"
+      src="/images/shijiu.jpeg">
+  <p class="site-author-name" itemprop="name">John Doe</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">John Doe</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
